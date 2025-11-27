@@ -227,6 +227,13 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, [setupUserSession]);
 
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setIsAuthLoading(false);
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, []);
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
