@@ -627,7 +627,7 @@ const App: React.FC = () => {
 
     switch (view) {
       case 'admin_dashboard':
-        return <AdminDashboardView setView={setView} />;
+        return <AdminDashboardView setView={setView} users={users} outlets={outlets} templates={checklistTemplates} checklists={checklists} />;
       case 'auditor_dashboard':
         return <AuditorDashboardView user={currentUser} onSelectChecklist={handleSelectChecklist} checklists={checklists} tasks={tasks} users={users} onResolveTask={handleResolveTask} />;
       case 'findings':
@@ -661,7 +661,7 @@ const App: React.FC = () => {
                     onCancel={() => setView('admin_dashboard')}
                 />;
       default:
-        if (currentUser.role === Role.Admin) return <AdminDashboardView setView={setView} />;
+        if (currentUser.role === Role.Admin) return <AdminDashboardView setView={setView} users={users} outlets={outlets} templates={checklistTemplates} checklists={checklists} />;
         if (currentUser.role === Role.Auditor) return <AuditorDashboardView user={currentUser} onSelectChecklist={handleSelectChecklist} checklists={checklists} tasks={tasks} users={users} onResolveTask={handleResolveTask} />;
         return <h2>Error: Unknown View</h2>;
     }
