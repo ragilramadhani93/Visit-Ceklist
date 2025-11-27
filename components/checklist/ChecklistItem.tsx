@@ -4,7 +4,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { ChecklistItem as ChecklistItemType } from '../../types';
 import { Camera, X } from 'lucide-react';
-import { blobToBase64 } from '../../utils/fileUtils';
+import { resizeImageToBase64 } from '../../utils/fileUtils';
 import AIPhotoAnalysis from './AIPhotoAnalysis';
 
 interface ChecklistItemProps {
@@ -41,11 +41,10 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
     const file = event.target.files?.[0];
     if (file) {
       try {
-        const base64String = await blobToBase64(file);
+        const base64String = await resizeImageToBase64(file);
         const newPhotoEvidence = [...(item.photoEvidence || []), base64String];
-        
-        const objectUrl = URL.createObjectURL(file);
-        setPreviews(prev => [...prev, objectUrl]);
+        const previewDataUrl = `data:image/jpeg;base64,${base64String}`;
+        setPreviews(prev => [...prev, previewDataUrl]);
         
         let updates: Partial<ChecklistItemType> = { photoEvidence: newPhotoEvidence };
         if (item.type === 'photo') {

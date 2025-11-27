@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import Modal from '../shared/Modal';
 import Button from '../shared/Button';
 import { Task } from '../../types';
-import { blobToBase64 } from '../../utils/fileUtils';
+import { resizeImageToBase64 } from '../../utils/fileUtils';
 import { Upload, X } from 'lucide-react';
 
 interface ResolveFindingModalProps {
@@ -44,7 +44,7 @@ const ResolveFindingModal: React.FC<ResolveFindingModalProps> = ({ isOpen, onClo
 
     setIsLoading(true);
     try {
-      const base64Photo = await blobToBase64(photoFile);
+      const base64Photo = await resizeImageToBase64(photoFile);
       await onResolve(finding.id, { photo: base64Photo });
       // The parent component will close the modal on success
     } catch (error) {
