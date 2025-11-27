@@ -47,9 +47,9 @@ const LoginPage: React.FC = () => {
         try {
             const { error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) throw error;
-            // The onAuthStateChange listener in App.tsx will handle the redirect.
         } catch (err: any) {
             setError(err.error_description || err.message || "An unknown error occurred.");
+        } finally {
             setLoading(false);
         }
     };
