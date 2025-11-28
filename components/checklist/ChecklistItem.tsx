@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { ChecklistItem as ChecklistItemType } from '../../types';
 import { Camera, X } from 'lucide-react';
 import { blobToBase64, resizeImage } from '../../utils/fileUtils';
+import SelfieCapture from './SelfieCapture';
 import AIPhotoAnalysis from './AIPhotoAnalysis';
 
 interface ChecklistItemProps {
@@ -12,6 +13,7 @@ interface ChecklistItemProps {
 const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   // FIX: Reworked photo preview logic to be more robust for session restoration.
   // It now consistently generates data URIs from base64 strings, removing the fragile
@@ -52,6 +54,24 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
       } catch (error) {
         console.error("Error converting file to base64", error);
       }
+    }
+  };
+  const handleCameraCapture = async (blob: Blob) => {
+    try {
+      const resized = await resizeImage(blob, 1600, 1600, 0.8);
+      const base64String = await blobToBase64(resized);
+      const newPhotoEvidence = [...(item.photoEvidence || []), base64String];
+      let updates: Partial<ChecklistItemType> = { photoEvidence: newPhotoEvidence };
+      if (item.type === 'photo') {
+        updates.value = newPhotoEvidence;
+        updates.aiAnalysisStatus = 'idle';
+        updates.aiAnalysisResult = '';
+      }
+      onChange(item.id, updates);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCameraOpen(false);
     }
   };
   
@@ -137,7 +157,13 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
         {/* Add photo button, centered */}
         <div className="mt-4 flex justify-center">
             <button 
-                onClick={() => photoInputRef.current?.click()} 
+                onClick={() => {
+                  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    setCameraOpen(true);
+                  } else {
+                    photoInputRef.current?.click();
+                  }
+                }} 
                 className="w-32 h-32 bg-gray-100 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors border-2 border-dashed border-gray-300 p-2"
             >
                 <Camera size={32} />
@@ -180,6 +206,9 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
               result={item.aiAnalysisResult}
               onStatusChange={handleAIStatusChange}
             />
+          )}
+          {cameraOpen && (
+            <SelfieCapture onCancel={() => setCameraOpen(false)} onCapture={handleCameraCapture} />
           )}
         </>
       )}
