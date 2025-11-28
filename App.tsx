@@ -263,7 +263,11 @@ const App: React.FC = () => {
         setUsers(usersRes.data as User[]);
         setChecklists(processedChecklists as unknown as Checklist[]);
         setTasks(tasksRes.data as unknown as Task[]);
-        setChecklistTemplates(templatesRes.data as unknown as ChecklistTemplate[]);
+        const processedTemplates = (templatesRes.data || []).map((t: any) => ({
+          ...t,
+          items: Array.isArray(t.items) ? t.items : [],
+        }));
+        setChecklistTemplates(processedTemplates as unknown as ChecklistTemplate[]);
         setOutlets(outletsRes.data as Outlet[]);
     } catch (error: any) {
         console.error("Error fetching data:", error);

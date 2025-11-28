@@ -26,7 +26,7 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
   useEffect(() => {
     if (selectedTemplateId) {
       const found = templates.find(t => t.id === selectedTemplateId);
-      setActiveTemplate(found ? { ...found } : { ...NEW_TEMPLATE });
+      setActiveTemplate(found ? { ...found, items: Array.isArray((found as any).items) ? (found as any).items : [] } : { ...NEW_TEMPLATE });
     } else {
       setActiveTemplate({ ...NEW_TEMPLATE });
     }
