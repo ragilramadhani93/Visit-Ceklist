@@ -307,16 +307,15 @@ const App: React.FC = () => {
   // finds that checklist and restores it to the state, putting the user back where they were.
   useEffect(() => {
       if (checklists.length > 0 && !selectedChecklist) {
-          const activeChecklistId = sessionStorage.getItem('activeChecklistId');
+          const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
           if (activeChecklistId) {
               const found = checklists.find(c => c.id === activeChecklistId);
               if (found) {
-                  console.log("Restoring active checklist session:", found.id);
                   setSelectedChecklist(found);
                   setView('checklists');
               } else {
-                  // Clean up if the ID is stale or invalid
                   sessionStorage.removeItem('activeChecklistId');
+                  localStorage.removeItem('activeChecklistId');
               }
           }
       }
@@ -341,6 +340,7 @@ const App: React.FC = () => {
     // FIX: Save the active checklist ID to session storage. This allows us to restore the
     // state if the page reloads, which is common on mobile after using the camera.
     sessionStorage.setItem('activeChecklistId', checklist.id);
+    localStorage.setItem('activeChecklistId', checklist.id);
   }, []);
 
   const handleBackToList = useCallback(() => {
@@ -351,6 +351,7 @@ const App: React.FC = () => {
         sessionStorage.removeItem(`checklistIndex_${selectedChecklist.id}`);
     }
     sessionStorage.removeItem('activeChecklistId');
+    localStorage.removeItem('activeChecklistId');
     
     setSelectedChecklist(null);
     if (currentUser?.role === Role.Admin) setView('admin_dashboard');
