@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { ChecklistItem as ChecklistItemType } from '../../types';
 import { Camera, X } from 'lucide-react';
-import { blobToBase64 } from '../../utils/fileUtils';
+import { blobToBase64, resizeImage } from '../../utils/fileUtils';
 import AIPhotoAnalysis from './AIPhotoAnalysis';
 
 interface ChecklistItemProps {
@@ -34,7 +34,8 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
     const file = event.target.files?.[0];
     if (file) {
       try {
-        const base64String = await blobToBase64(file);
+        const resized = await resizeImage(file, 1600, 1600, 0.8);
+        const base64String = await blobToBase64(resized);
         const newPhotoEvidence = [...(item.photoEvidence || []), base64String];
         
         // The useEffect hook will automatically update the previews state.
