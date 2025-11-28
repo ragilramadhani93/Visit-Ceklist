@@ -323,6 +323,13 @@ const App: React.FC = () => {
       }
   }, [checklists, selectedChecklist]);
 
+  useEffect(() => {
+    const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
+    if (activeChecklistId && view !== 'checklists') {
+      setView('checklists');
+    }
+  }, [view]);
+
   const handleLogout = useCallback(async () => {
       try {
         for (let i = 0; i < localStorage.length; i++) {
