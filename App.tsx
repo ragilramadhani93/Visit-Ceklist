@@ -57,8 +57,8 @@ const LoginPage: React.FC = () => {
     useEffect(() => {
         if (loading) {
             const timer = setTimeout(() => {
-                setError('Login timeout. Periksa koneksi atau kredensial Anda.');
                 setLoading(false);
+                setError(prev => prev || 'Login timeout. Periksa koneksi atau kredensial Anda.');
             }, 8000);
             return () => clearTimeout(timer);
         }
