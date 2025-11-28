@@ -1,0 +1,7 @@
+{
+  "name": "Field Ops Pro",
+  "description": "A web application to digitize and streamline field operations management, including audits, inspections, and daily tasks, with a focus on real-time reporting and team accountability.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
