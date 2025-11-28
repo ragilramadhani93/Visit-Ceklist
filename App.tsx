@@ -162,10 +162,12 @@ const App: React.FC = () => {
 
       if (userProfile) {
         setCurrentUser(userProfile);
-        if (userProfile.role === Role.Admin) {
-            setView('admin_dashboard');
+        const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
+        if (activeChecklistId) {
+            setView('checklists');
         } else {
-            setView('auditor_dashboard');
+            if (userProfile.role === Role.Admin) setView('admin_dashboard');
+            else setView('auditor_dashboard');
         }
       } else {
         throw new Error("User profile could not be found or created. This is an unexpected error.");
@@ -710,7 +712,9 @@ const App: React.FC = () => {
       case 'auditor_dashboard':
         return <AuditorDashboardView user={currentUser} onSelectChecklist={handleSelectChecklist} checklists={checklists} tasks={tasks} users={users} onResolveTask={handleResolveTask} />;
       case 'checklists':
-        return selectedChecklist ? <ChecklistView checklist={selectedChecklist} onBack={handleBackToList} onSubmit={handleChecklistSubmit} onLogout={handleLogout} isSubmitting={!!submissionProgress} /> : <div>Checklist not found</div>;
+        return selectedChecklist
+          ? <ChecklistView checklist={selectedChecklist} onBack={handleBackToList} onSubmit={handleChecklistSubmit} onLogout={handleLogout} isSubmitting={!!submissionProgress} />
+          : <LoadingSpinner message="Restoring checklist..." />;
       case 'findings':
         return <FindingsView tasks={tasks} checklists={checklists} users={users} onResolveTask={handleResolveTask} />;
       case 'reports':
