@@ -112,6 +112,7 @@ const App: React.FC = () => {
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [authTimeout, setAuthTimeout] = useState(false);
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [view, setView] = useState<View>('admin_dashboard');
@@ -231,6 +232,11 @@ const App: React.FC = () => {
     const timeout = setTimeout(() => {
       setIsAuthLoading(false);
     }, 5000);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setAuthTimeout(true), 3000);
     return () => clearTimeout(timeout);
   }, []);
 
@@ -678,7 +684,7 @@ const App: React.FC = () => {
     }
   };
 
-  if (isAuthLoading) {
+  if (isAuthLoading && !authTimeout) {
       return <LoadingSpinner message="Checking authentication..." />;
   }
 
