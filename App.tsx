@@ -54,6 +54,16 @@ const LoginPage: React.FC = () => {
         }
     };
 
+    useEffect(() => {
+        if (loading) {
+            const timer = setTimeout(() => {
+                setError('Login timeout. Periksa koneksi atau kredensial Anda.');
+                setLoading(false);
+            }, 8000);
+            return () => clearTimeout(timer);
+        }
+    }, [loading]);
+
     return (
         <div className="flex items-center justify-center min-h-screen bg-base-200">
             <Card className="w-full max-w-sm text-center shadow-2xl p-8">
