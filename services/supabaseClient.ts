@@ -13,4 +13,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   alert(message);
 }
 
-export const supabase = createClient<Database>(supabaseUrl!, supabaseAnonKey!);
+export const supabase = createClient<Database>(supabaseUrl!, supabaseAnonKey!, {
+  global: {
+    headers: {
+      apikey: supabaseAnonKey!,
+      Authorization: `Bearer ${supabaseAnonKey!}`,
+    },
+  },
+});
