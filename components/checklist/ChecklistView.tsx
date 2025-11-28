@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Checklist, ChecklistItem as ChecklistItemType, TaskPriority } from '../../types';
 import ChecklistItem from './ChecklistItem';
 import SignaturePad from './SignaturePad';
+import SelfieCapture from './SelfieCapture';
+import { resizeImage, blobToBase64 } from '../../utils/fileUtils';
 import { ArrowLeft, Clock, LogIn, LogOut, Signature } from 'lucide-react';
 import Button from '../shared/Button';
 import Card from '../shared/Card';
@@ -45,6 +47,8 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
   );
   
   const [signature, setSignature] = useState<string | null>(null);
+  const [selfie, setSelfie] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   // FIX: Save the entire checklist state to sessionStorage whenever it changes.
   useEffect(() => {
@@ -150,6 +154,7 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
     const finalChecklist = {
         ...currentChecklist,
         auditor_signature: signature,
+        auditor_selfie: selfie || undefined,
         check_out_time: new Date().toISOString(),
         status: 'completed' as 'completed',
     };
@@ -190,6 +195,22 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
             <main className="flex-1 overflow-y-auto p-5 space-y-5">
                 <h2 className="text-xl font-bold text-center text-neutral">Final Verification</h2>
                 <Card>
+                    <h3 className="font-semibold text-neutral mb-3">Auditor Selfie (Optional)</h3>
+                    {selfie ? (
+                      <div className="relative w-full">
+                        <img src={`data:image/jpeg;base64,${selfie}`} alt="Auditor Selfie" className="w-full rounded" />
+                        <div className="mt-3 flex gap-3">
+                          <Button onClick={() => setSelfie(null)} className="!py-2">Remove</Button>
+                          <Button onClick={() => setCameraOpen(true)} className="!py-2">Retake</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-3">
+                        <Button onClick={() => setCameraOpen(true)} className="!py-2">Open Camera</Button>
+                      </div>
+                    )}
+                </Card>
+                <Card>
                     <h3 className="font-semibold text-neutral mb-3 flex items-center"><Signature size={20} className="mr-2 text-primary"/>Auditor Signature</h3>
                     <SignaturePad onChange={setSignature} />
                 </Card>
@@ -204,6 +225,19 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
                     <LogOut size={20} className="mr-2" /> Complete & Submit
                 </Button>
             </footer>
+            {cameraOpen && (
+              <SelfieCapture onCancel={() => setCameraOpen(false)} onCapture={async (blob) => {
+                try {
+                  const resized = await resizeImage(blob, 1600, 1600, 0.8);
+                  const b64 = await blobToBase64(resized);
+                  setSelfie(b64);
+                } catch (e) {
+                  console.error(e);
+                } finally {
+                  setCameraOpen(false);
+                }
+              }} />
+            )}
          </div>
       );
   }
@@ -244,5 +278,14 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
     </div>
   );
 };
+
+// Camera overlay handler for selfie capture
+const SelfieCaptureOverlay: React.FC<{ open: boolean; onClose: () => void; onBlob: (blob: Blob) => void }> = ({ open, onClose, onBlob }) => {
+  if (!open) return null;
+  return <SelfieCapture onCancel={onClose} onCapture={onBlob} />;
+};
+
+// Augment default export to include selfie handler within the same file scope
+// This component is used internally by ChecklistView via state.
 
 export default ChecklistView;

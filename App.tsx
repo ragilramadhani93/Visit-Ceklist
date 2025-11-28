@@ -572,10 +572,16 @@ const App: React.FC = () => {
           const signatureBlob = base64ToBlob(signatureUrl, 'image/png');
           signatureUrl = await uploadFile('field-ops-photos', signatureBlob, `signatures/${completedChecklist.id}_${Date.now()}.png`);
       }
+      let selfieUrl = completedChecklist.auditor_selfie;
+      if (selfieUrl && !selfieUrl.startsWith('http')) {
+          const selfieBlob = base64ToBlob(selfieUrl, 'image/jpeg');
+          selfieUrl = await uploadFile('field-ops-photos', selfieBlob, `selfies/${completedChecklist.id}_${Date.now()}.jpg`);
+      }
 
       // Create a new checklist object with uploaded photo URLs
       const checklistForDb = JSON.parse(JSON.stringify(completedChecklist));
       checklistForDb.auditor_signature = signatureUrl;
+      checklistForDb.auditor_selfie = selfieUrl;
 
       // Upload all photo evidence
       for (const item of checklistForDb.items) {
@@ -630,7 +636,7 @@ const App: React.FC = () => {
       
       // Finalize and save the checklist data with all new URLs
       updateProgress("Finalizing checklist data...");
-      const { id, ...updateData } = checklistForDb;
+      const { id, auditor_selfie, ...updateData } = checklistForDb;
       const { data, error } = await (supabase.from('checklists') as any)
           .update(updateData)
           .eq('id', id)
