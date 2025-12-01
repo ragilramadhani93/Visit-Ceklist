@@ -166,7 +166,9 @@ const App: React.FC = () => {
         if (activeChecklistId) {
             setView('checklists');
         } else {
-            if (userProfile.role === Role.Admin) setView('admin_dashboard');
+            const templateActive = localStorage.getItem('templateDraftActive') === '1';
+            if (templateActive) setView('templates');
+            else if (userProfile.role === Role.Admin) setView('admin_dashboard');
             else setView('auditor_dashboard');
         }
       } else {
@@ -327,6 +329,11 @@ const App: React.FC = () => {
     const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
     if (activeChecklistId && view !== 'checklists') {
       setView('checklists');
+    } else {
+      const templateActive = localStorage.getItem('templateDraftActive') === '1';
+      if (templateActive && view !== 'templates') {
+        setView('templates');
+      }
     }
   }, [view]);
 
