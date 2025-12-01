@@ -45,6 +45,7 @@ export interface Checklist {
   check_in_time?: string;
   check_out_time?: string;
   auditor_signature?: string; // URL
+  auditor_selfie?: string; // base64 or URL (not persisted)
   report_url?: string; // URL
   created_at?: string;
 }

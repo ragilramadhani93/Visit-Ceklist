@@ -29,3 +29,36 @@ export const base64ToBlob = (base64: string, contentType: string = 'image/jpeg')
     }
     return new Blob(byteArrays, { type: contentType });
 };
+
+export const resizeImage = (file: Blob, maxWidth = 1280, maxHeight = 1280, quality = 0.8): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+      const targetWidth = Math.round(width * ratio);
+      const targetHeight = Math.round(height * ratio);
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        reject(new Error('Canvas context not available'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        if (blob) resolve(blob);
+        else reject(new Error('Failed to create blob'));
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = (e) => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Image load error'));
+    };
+    img.src = url;
+  });
+};

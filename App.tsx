@@ -162,10 +162,14 @@ const App: React.FC = () => {
 
       if (userProfile) {
         setCurrentUser(userProfile);
-        if (userProfile.role === Role.Admin) {
-            setView('admin_dashboard');
+        const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
+        if (activeChecklistId) {
+            setView('checklists');
         } else {
-            setView('auditor_dashboard');
+            const templateActive = localStorage.getItem('templateDraftActive') === '1';
+            if (templateActive) setView('templates');
+            else if (userProfile.role === Role.Admin) setView('admin_dashboard');
+            else setView('auditor_dashboard');
         }
       } else {
         throw new Error("User profile could not be found or created. This is an unexpected error.");
@@ -307,20 +311,31 @@ const App: React.FC = () => {
   // finds that checklist and restores it to the state, putting the user back where they were.
   useEffect(() => {
       if (checklists.length > 0 && !selectedChecklist) {
-          const activeChecklistId = sessionStorage.getItem('activeChecklistId');
+          const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
           if (activeChecklistId) {
               const found = checklists.find(c => c.id === activeChecklistId);
               if (found) {
-                  console.log("Restoring active checklist session:", found.id);
                   setSelectedChecklist(found);
                   setView('checklists');
               } else {
-                  // Clean up if the ID is stale or invalid
                   sessionStorage.removeItem('activeChecklistId');
+                  localStorage.removeItem('activeChecklistId');
               }
           }
       }
   }, [checklists, selectedChecklist]);
+
+  useEffect(() => {
+    const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
+    if (activeChecklistId && view !== 'checklists') {
+      setView('checklists');
+    } else {
+      const templateActive = localStorage.getItem('templateDraftActive') === '1';
+      if (templateActive && view !== 'templates') {
+        setView('templates');
+      }
+    }
+  }, [view]);
 
   const handleLogout = useCallback(async () => {
       try {
@@ -341,6 +356,7 @@ const App: React.FC = () => {
     // FIX: Save the active checklist ID to session storage. This allows us to restore the
     // state if the page reloads, which is common on mobile after using the camera.
     sessionStorage.setItem('activeChecklistId', checklist.id);
+    localStorage.setItem('activeChecklistId', checklist.id);
   }, []);
 
   const handleBackToList = useCallback(() => {
@@ -351,6 +367,7 @@ const App: React.FC = () => {
         sessionStorage.removeItem(`checklistIndex_${selectedChecklist.id}`);
     }
     sessionStorage.removeItem('activeChecklistId');
+    localStorage.removeItem('activeChecklistId');
     
     setSelectedChecklist(null);
     if (currentUser?.role === Role.Admin) setView('admin_dashboard');
@@ -562,10 +579,16 @@ const App: React.FC = () => {
           const signatureBlob = base64ToBlob(signatureUrl, 'image/png');
           signatureUrl = await uploadFile('field-ops-photos', signatureBlob, `signatures/${completedChecklist.id}_${Date.now()}.png`);
       }
+      let selfieUrl = completedChecklist.auditor_selfie;
+      if (selfieUrl && !selfieUrl.startsWith('http')) {
+          const selfieBlob = base64ToBlob(selfieUrl, 'image/jpeg');
+          selfieUrl = await uploadFile('field-ops-photos', selfieBlob, `selfies/${completedChecklist.id}_${Date.now()}.jpg`);
+      }
 
       // Create a new checklist object with uploaded photo URLs
       const checklistForDb = JSON.parse(JSON.stringify(completedChecklist));
       checklistForDb.auditor_signature = signatureUrl;
+      checklistForDb.auditor_selfie = selfieUrl;
 
       // Upload all photo evidence
       for (const item of checklistForDb.items) {
@@ -620,7 +643,7 @@ const App: React.FC = () => {
       
       // Finalize and save the checklist data with all new URLs
       updateProgress("Finalizing checklist data...");
-      const { id, ...updateData } = checklistForDb;
+      const { id, auditor_selfie, ...updateData } = checklistForDb;
       const { data, error } = await (supabase.from('checklists') as any)
           .update(updateData)
           .eq('id', id)
@@ -709,7 +732,9 @@ const App: React.FC = () => {
       case 'auditor_dashboard':
         return <AuditorDashboardView user={currentUser} onSelectChecklist={handleSelectChecklist} checklists={checklists} tasks={tasks} users={users} onResolveTask={handleResolveTask} />;
       case 'checklists':
-        return selectedChecklist ? <ChecklistView checklist={selectedChecklist} onBack={handleBackToList} onSubmit={handleChecklistSubmit} onLogout={handleLogout} isSubmitting={!!submissionProgress} /> : <div>Checklist not found</div>;
+        return selectedChecklist
+          ? <ChecklistView checklist={selectedChecklist} onBack={handleBackToList} onSubmit={handleChecklistSubmit} onLogout={handleLogout} isSubmitting={!!submissionProgress} />
+          : <LoadingSpinner message="Restoring checklist..." />;
       case 'findings':
         return <FindingsView tasks={tasks} checklists={checklists} users={users} onResolveTask={handleResolveTask} />;
       case 'reports':

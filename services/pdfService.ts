@@ -170,6 +170,23 @@ export const generateAuditReportPDF = async (
         doc.text('Auditor Signature', 15, yPos);
         yPos += 5;
         doc.addImage(signatureDataURI, 'PNG', 15, yPos, 80, 40);
+        yPos += 50;
+    }
+
+    // --- Auditor Selfie ---
+    const selfieDataURI = await getImageAsDataURI(checklist.auditor_selfie || '', 'image/jpeg');
+    if (selfieDataURI) {
+        if (yPos > pageHeight - 80) {
+            doc.addPage();
+            yPos = 20;
+        } else {
+            yPos += 15;
+        }
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Auditor Selfie', 15, yPos);
+        yPos += 5;
+        doc.addImage(selfieDataURI, 'JPEG', 15, yPos, 60, 60);
     }
     
     return doc.output('blob');
