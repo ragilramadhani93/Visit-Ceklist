@@ -1,12 +1,15 @@
 import React from 'react';
-import { Users, MapPin, FileText as FileTextIcon, HeartPulse, Store, ClipboardPlus } from 'lucide-react';
+import { Users, FileText as FileTextIcon, HeartPulse, Store, ClipboardPlus } from 'lucide-react';
 import Card from '../shared/Card';
 import Button from '../shared/Button';
-import { View } from '../../types';
+import { View, User, Outlet, ChecklistTemplate, Checklist } from '../../types';
 
 interface AdminDashboardViewProps {
   setView: (view: View) => void;
-  usersCount: number;
+  users: User[];
+  outlets: Outlet[];
+  templates: ChecklistTemplate[];
+  checklists: Checklist[];
 }
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode; color: string }> = ({ title, value, icon, color }) => (
@@ -21,16 +24,22 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode; 
     </Card>
 );
 
-const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setView, usersCount }) => {
+const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setView, users, outlets, templates, checklists }) => {
+  const totalUsers = users.length.toString();
+  const totalOutlets = outlets.length.toString();
+  const totalTemplates = templates.length.toString();
+  const completed = checklists.filter(c => c.status === 'completed').length;
+  const totalChecklists = checklists.length;
+  const health = totalChecklists === 0 ? 'Operational' : `${Math.round((completed / totalChecklists) * 100)}% Completed`;
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-neutral">Admin Dashboard</h2>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Users" value={String(usersCount)} icon={<Users className="text-white" />} color="bg-blue-500" />
-        <StatCard title="Managed Outlets" value="14" icon={<Store className="text-white" />} color="bg-teal-500" />
-        <StatCard title="Checklist Templates" value="48" icon={<FileTextIcon className="text-white" />} color="bg-orange-500" />
-        <StatCard title="System Health" value="Optimal" icon={<HeartPulse className="text-white" />} color="bg-success" />
+        <StatCard title="Total Users" value={totalUsers} icon={<Users className="text-white" />} color="bg-blue-500" />
+        <StatCard title="Managed Outlets" value={totalOutlets} icon={<Store className="text-white" />} color="bg-teal-500" />
+        <StatCard title="Checklist Templates" value={totalTemplates} icon={<FileTextIcon className="text-white" />} color="bg-orange-500" />
+        <StatCard title="System Health" value={health} icon={<HeartPulse className="text-white" />} color="bg-success" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">

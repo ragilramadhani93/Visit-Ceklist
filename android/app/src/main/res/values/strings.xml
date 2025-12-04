@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Visit Ceklist</string>
+    <string name="title_activity_main">Visit Ceklist</string>
+    <string name="package_name">com.visitceklist</string>
+    <string name="custom_url_scheme">com.visitceklist</string>
+</resources>

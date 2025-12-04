@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { analyzeImageWithGemini } from '../../services/geminiService';
+import { analyzeImageWithGemini, isGeminiEnabled } from '../../services/geminiService';
 import Button from '../shared/Button';
 import { Sparkles, CheckCircle, AlertTriangle } from 'lucide-react';
 
@@ -12,6 +12,8 @@ interface AIPhotoAnalysisProps {
 }
 
 const AIPhotoAnalysis: React.FC<AIPhotoAnalysisProps> = ({ base64Image, itemId, status, result, onStatusChange }) => {
+  if (!isGeminiEnabled) return null;
+  if (!isGeminiEnabled) return null;
   const handleAnalyze = useCallback(async () => {
     if (!base64Image) return;
 

@@ -4,6 +4,8 @@ import ChecklistItem from './ChecklistItem';
 import SignaturePad from './SignaturePad';
 import SelfieCapture from './SelfieCapture';
 import { resizeImage, blobToBase64 } from '../../utils/fileUtils';
+import { Capacitor } from '@capacitor/core';
+import { Camera as NativeCam, CameraResultType, CameraSource } from '@capacitor/camera';
 import { ArrowLeft, Clock, LogIn, LogOut, Signature } from 'lucide-react';
 import Button from '../shared/Button';
 import Card from '../shared/Card';
@@ -50,6 +52,26 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
   const [selfie, setSelfie] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
 
+  const openSelfieCamera = async () => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const photo = await NativeCam.getPhoto({
+          source: CameraSource.Camera,
+          resultType: CameraResultType.Base64,
+          quality: 80,
+        });
+        const base64String = photo.base64String || '';
+        if (!base64String) return;
+        // optionally resize for consistency
+        setSelfie(base64String);
+      } else {
+        setCameraOpen(true);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // FIX: Save the entire checklist state to sessionStorage whenever it changes.
   useEffect(() => {
     sessionStorage.setItem(`checklistState_${checklist.id}`, JSON.stringify(currentChecklist));
@@ -59,6 +81,7 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
   useEffect(() => {
     sessionStorage.setItem(`checklistIndex_${checklist.id}`, currentItemIndex.toString());
   }, [currentItemIndex, checklist.id]);
+  
 
   const handleItemChange = (itemId: string, updates: Partial<ChecklistItemType>) => {
     setCurrentChecklist(prev => ({
@@ -80,8 +103,6 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
                 assigned_to: item.finding?.assigned_to || checklist.assigned_to,
                 due_date: item.finding?.due_date || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                 status: item.finding?.status || 'open',
-                // FIX: The finding description now always syncs with the latest note text,
-                // fixing a bug where only the first letter/word of the note was saved.
                 description: updatedItem.note || '',
                 photo: updatedItem.photoEvidence?.[0] || item.photoEvidence?.[0] || null, // Use the first photo as the primary finding photo
                 // FIX: Add missing `proof_of_fix` and `checklist_id` properties to ensure
@@ -206,7 +227,7 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
                       </div>
                     ) : (
                       <div className="flex gap-3">
-                        <Button onClick={() => setCameraOpen(true)} className="!py-2">Open Camera</Button>
+                        <Button onClick={openSelfieCamera} className="!py-2">Open Camera</Button>
                       </div>
                     )}
                 </Card>
@@ -278,14 +299,5 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
     </div>
   );
 };
-
-// Camera overlay handler for selfie capture
-const SelfieCaptureOverlay: React.FC<{ open: boolean; onClose: () => void; onBlob: (blob: Blob) => void }> = ({ open, onClose, onBlob }) => {
-  if (!open) return null;
-  return <SelfieCapture onCancel={onClose} onCapture={onBlob} />;
-};
-
-// Augment default export to include selfie handler within the same file scope
-// This component is used internally by ChecklistView via state.
 
 export default ChecklistView;

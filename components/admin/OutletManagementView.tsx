@@ -65,8 +65,6 @@ const OutletForm: React.FC<{ outlet?: Outlet | null; users: User[]; onSave: (out
 const OutletManagementView: React.FC<OutletManagementViewProps> = ({ outlets, users, onAddOutlet, onUpdateOutlet, onDeleteOutlet }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOutlet, setEditingOutlet] = useState<Outlet | null>(null);
-
-  // FIX: Explicitly type the Map to ensure TypeScript correctly infers the type of `userMap.get()`, resolving an 'unknown' type error.
   const userMap = new Map<string, User>(users.map(user => [user.id, user]));
 
   const handleOpenModal = useCallback((outlet?: Outlet) => {
@@ -99,10 +97,10 @@ const OutletManagementView: React.FC<OutletManagementViewProps> = ({ outlets, us
           <table className="w-full text-left">
             <thead>
               <tr className="border-b bg-base-200">
-                <th className="p-3 whitespace-nowrap">Outlet Name</th>
-                <th className="p-3 whitespace-nowrap">Address</th>
-                <th className="p-3 whitespace-nowrap">Manager</th>
-                <th className="p-3 whitespace-nowrap">Actions</th>
+                <th className="p-3">Outlet Name</th>
+                <th className="p-3">Address</th>
+                <th className="p-3">Manager</th>
+                <th className="p-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -110,14 +108,14 @@ const OutletManagementView: React.FC<OutletManagementViewProps> = ({ outlets, us
                 const manager = outlet.manager_id ? userMap.get(outlet.manager_id) : null;
                 return (
                     <tr key={outlet.id} className="border-b hover:bg-base-200">
-                    <td className="p-3 font-semibold whitespace-nowrap">
+                    <td className="p-3 font-semibold">
                         <div className="flex items-center">
                             <Store className="w-5 h-5 mr-3 text-primary"/>
                             {outlet.name}
                         </div>
                     </td>
-                    <td className="p-3 text-gray-600 whitespace-nowrap">{outlet.address}</td>
-                    <td className="p-3 whitespace-nowrap">
+                    <td className="p-3 text-gray-600">{outlet.address}</td>
+                    <td className="p-3">
                         {manager ? (
                             <div className="flex items-center">
                                 <Avatar user={manager} className="w-8 h-8 mr-2" />

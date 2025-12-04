@@ -1,5 +1,5 @@
 
-export const blobToBase64 = <T,>(blob: Blob): Promise<string> => {
+export const blobToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
@@ -55,7 +55,7 @@ export const resizeImage = (file: Blob, maxWidth = 1280, maxHeight = 1280, quali
         else reject(new Error('Failed to create blob'));
       }, 'image/jpeg', quality);
     };
-    img.onerror = (e) => {
+    img.onerror = (_e) => {
       URL.revokeObjectURL(url);
       reject(new Error('Image load error'));
     };

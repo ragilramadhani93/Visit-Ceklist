@@ -55,7 +55,6 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
       localStorage.setItem('templateEditorDraft', payload);
     } catch {}
   }, [selectedTemplateId, activeTemplate]);
-
   const handleSelectTemplate = (id: string) => {
     setSelectedTemplateId(id);
   };
@@ -191,6 +190,20 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
                                             className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm shadow-sm focus:ring-primary focus:border-primary"
                                         />
                                     </div>
+
+                                    {item.type === 'photo' && (
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Photo Source</label>
+                                        <select
+                                          value={item.photoSource || 'live'}
+                                          onChange={(e) => handleItemChange(index, 'photoSource', e.target.value)}
+                                          className="w-full px-2 py-1.5 border border-gray-300 bg-white rounded-md text-sm shadow-sm focus:ring-primary focus:border-primary"
+                                        >
+                                          <option value="live">Live Camera</option>
+                                          <option value="upload">Upload</option>
+                                        </select>
+                                      </div>
+                                    )}
 
                                     {/* Mandatory Options */}
                                     <div className="col-span-1 lg:col-span-1 flex items-end space-x-6 flex-wrap">

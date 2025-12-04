@@ -107,10 +107,6 @@ CREATE TABLE public.checklists (
     assigned_to uuid REFERENCES public.users(id) ON DELETE SET NULL,
     due_date date,
     status public.checklist_status,
-    -- FIX: Added a default value of an empty array ('[]') to the 'items' column.
-    -- This makes the schema more explicit for Supabase's API layer, which prevents
-    -- the schema cache from getting confused and failing to find subsequent columns
-    -- like 'report_url'. This is the definitive fix for the persistent error.
     items jsonb DEFAULT '[]'::jsonb,
     check_in_time timestamp with time zone,
     check_out_time timestamp with time zone,

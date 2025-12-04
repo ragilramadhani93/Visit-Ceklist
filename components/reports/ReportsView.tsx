@@ -31,11 +31,11 @@ const ReportsView: React.FC<ReportsViewProps> = ({ checklists, users }) => {
           <table className="w-full text-left">
             <thead className="bg-base-200">
               <tr>
-                <th className="p-3 font-semibold whitespace-nowrap">Audit Title</th>
-                <th className="p-3 font-semibold whitespace-nowrap">Location</th>
-                <th className="p-3 font-semibold whitespace-nowrap">Auditor</th>
-                <th className="p-3 font-semibold whitespace-nowrap">Completion Date</th>
-                <th className="p-3 font-semibold text-center whitespace-nowrap">Actions</th>
+                <th className="p-3 font-semibold">Audit Title</th>
+                <th className="p-3 font-semibold">Location</th>
+                <th className="p-3 font-semibold">Auditor</th>
+                <th className="p-3 font-semibold">Completion Date</th>
+                <th className="p-3 font-semibold text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -44,14 +44,14 @@ const ReportsView: React.FC<ReportsViewProps> = ({ checklists, users }) => {
                   const auditor = audit.assigned_to ? userMap.get(audit.assigned_to) : null;
                   return (
                     <tr key={audit.id} className="border-b hover:bg-base-200/50">
-                      <td className="p-3 whitespace-nowrap">
+                      <td className="p-3">
                         <div className="flex items-center">
                           <FileText className="w-5 h-5 mr-3 text-primary" />
                           <span className="font-medium text-neutral">{audit.title}</span>
                         </div>
                       </td>
-                      <td className="p-3 text-gray-700 whitespace-nowrap">{audit.location}</td>
-                      <td className="p-3 whitespace-nowrap">
+                      <td className="p-3 text-gray-700">{audit.location}</td>
+                      <td className="p-3">
                         {auditor ? (
                           <div className="flex items-center">
                             <Avatar user={auditor} className="w-8 h-8 mr-2" />
@@ -61,10 +61,10 @@ const ReportsView: React.FC<ReportsViewProps> = ({ checklists, users }) => {
                           <span className="text-gray-400 italic">N/A</span>
                         )}
                       </td>
-                      <td className="p-3 text-gray-700 whitespace-nowrap">
+                      <td className="p-3 text-gray-700">
                         {audit.check_out_time ? new Date(audit.check_out_time).toLocaleDateString() : 'N/A'}
                       </td>
-                      <td className="p-3 text-center whitespace-nowrap">
+                      <td className="p-3 text-center">
                         <a
                           href={audit.report_url}
                           target="_blank"

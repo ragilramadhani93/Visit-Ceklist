@@ -31,7 +31,7 @@ const AuditorDashboardView: React.FC<AuditorDashboardViewProps> = ({ user, onSel
     const enrichedMyTasks = useMemo<EnrichedFinding[]>(() => {
         const myOpenTasks = tasks.filter(t => (t.status === 'open' || t.status === 'in-progress') && t.assigned_to === user.id);
         const checklistMap = new Map<string, Checklist>(checklists.map(c => [c.id, c]));
-        const userMap = new Map(users.map(u => [u.id, u]));
+        const userMap = new Map<string, User>(users.map(u => [u.id, u]));
 
         return myOpenTasks.map(task => {
             const checklist = task.checklist_id ? checklistMap.get(task.checklist_id) : undefined;
@@ -50,7 +50,6 @@ const AuditorDashboardView: React.FC<AuditorDashboardViewProps> = ({ user, onSel
     const completedCount = useMemo(() => myChecklists.filter(c => c.status === 'completed').length, [myChecklists]);
     const totalCount = myChecklists.length;
     const completionRate = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
-
     const handleOpenResolveModal = (finding: EnrichedFinding) => {
         setSelectedFinding(finding);
         setIsModalOpen(true);
@@ -120,19 +119,19 @@ const AuditorDashboardView: React.FC<AuditorDashboardViewProps> = ({ user, onSel
                     <table className="w-full text-left">
                         <thead>
                             <tr className="border-b">
-                                <th className="p-2 whitespace-nowrap">Title</th>
-                                <th className="p-2 whitespace-nowrap">Location</th>
-                                <th className="p-2 whitespace-nowrap">Due Date</th>
-                                <th className="p-2 whitespace-nowrap">Status</th>
+                                <th className="p-2">Title</th>
+                                <th className="p-2">Location</th>
+                                <th className="p-2">Due Date</th>
+                                <th className="p-2">Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             {checklists.filter(c => c.status !== 'completed' && c.assigned_to === user.id).length > 0 ? checklists.filter(c => c.status !== 'completed' && c.assigned_to === user.id).map(checklist => (
                                 <tr key={checklist.id} className="border-b hover:bg-base-200 cursor-pointer" onClick={() => onSelectChecklist(checklist)}>
-                                    <td className="p-2 font-medium whitespace-nowrap">{checklist.title}</td>
-                                    <td className="p-2 whitespace-nowrap">{checklist.location}</td>
-                                    <td className="p-2 whitespace-nowrap">{checklist.due_date}</td>
-                                    <td className="p-2 whitespace-nowrap">
+                                    <td className="p-2 font-medium">{checklist.title}</td>
+                                    <td className="p-2">{checklist.location}</td>
+                                    <td className="p-2">{checklist.due_date}</td>
+                                    <td className="p-2">
                                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                                             checklist.status === 'pending' ? 'bg-yellow-200 text-yellow-800' : 'bg-blue-200 text-blue-800'
                                         }`}>

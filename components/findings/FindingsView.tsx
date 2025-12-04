@@ -155,9 +155,8 @@ const FindingsView: React.FC<FindingsViewProps> = ({ tasks, checklists, users, o
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   const enrichedFindings = useMemo<EnrichedFinding[]>(() => {
-    // FIX: Explicitly type the Map to ensure TypeScript correctly infers the type of `checklistMap.get()`, resolving 'unknown' type errors.
     const checklistMap = new Map<string, Checklist>(checklists.map(c => [c.id, c]));
-    const userMap = new Map(users.map(u => [u.id, u]));
+    const userMap = new Map<string, User>(users.map(u => [u.id, u]));
 
     return tasks.map(task => {
       const checklist = task.checklist_id ? checklistMap.get(task.checklist_id) : undefined;

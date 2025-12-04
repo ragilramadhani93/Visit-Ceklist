@@ -22,6 +22,7 @@ export interface ChecklistItemBase {
   required: boolean;
   requireNote?: boolean;
   minPhotos?: number; // Replaces requireLivePhoto
+  photoSource?: 'live' | 'upload';
 }
 
 export interface ChecklistItem extends ChecklistItemBase {

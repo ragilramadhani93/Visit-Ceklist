@@ -103,16 +103,16 @@ const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAddUse
           <table className="w-full text-left">
             <thead>
               <tr className="border-b bg-base-200">
-                <th className="p-3 whitespace-nowrap">User</th>
-                <th className="p-3 whitespace-nowrap">Role</th>
-                <th className="p-3 whitespace-nowrap">Location</th>
-                <th className="p-3 whitespace-nowrap">Actions</th>
+                <th className="p-3">User</th>
+                <th className="p-3">Role</th>
+                <th className="p-3">Location</th>
+                <th className="p-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {users.map(user => (
                 <tr key={user.id} className="border-b hover:bg-base-200">
-                  <td className="p-3 whitespace-nowrap">
+                  <td className="p-3">
                     <div className="flex items-center">
                       <Avatar user={user} className="w-10 h-10 mr-3" />
                       <div>
@@ -121,9 +121,9 @@ const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAddUse
                       </div>
                     </div>
                   </td>
-                  <td className="p-3 whitespace-nowrap">{user.role}</td>
-                  <td className="p-3 whitespace-nowrap">{user.location}</td>
-                  <td className="p-3 whitespace-nowrap">
+                  <td className="p-3">{user.role}</td>
+                  <td className="p-3">{user.location}</td>
+                  <td className="p-3">
                     <div className="flex items-center space-x-2">
                         <button onClick={() => handleOpenModal(user)} className="p-2 text-gray-500 hover:text-primary rounded-full hover:bg-blue-100"><Edit size={18} /></button>
                         <button onClick={() => handleDelete(user.id)} className="p-2 text-gray-500 hover:text-error rounded-full hover:bg-red-100"><Trash2 size={18} /></button>

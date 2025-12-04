@@ -10,13 +10,9 @@ import { Checklist, User } from '../types';
 
 const getImageAsDataURI = async (source: string, mimeType: string = 'image/jpeg'): Promise<string | null> => {
     if (!source) return null;
-
-    // If it's a base64 string (not a URL), format it as a data URI
-    if (!source.startsWith('http') && source.length > 200) { // Heuristic check for base64
+    if (!source.startsWith('http') && source.length > 200) {
         return `data:${mimeType};base64,${source}`;
     }
-
-    // If it's a URL, fetch it and convert to a data URI
     try {
         const response = await fetch(`${source}?t=${new Date().getTime()}`);
         if (!response.ok) {
@@ -25,7 +21,7 @@ const getImageAsDataURI = async (source: string, mimeType: string = 'image/jpeg'
         const blob = await response.blob();
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string); // Returns full data URI
+            reader.onloadend = () => resolve(reader.result as string);
             reader.onerror = reject;
             reader.readAsDataURL(blob);
         });
@@ -141,7 +137,7 @@ export const generateAuditReportPDF = async (
                             try {
                                 doc.addImage(imgDataUri, 'JPEG', x, y, imgSize, imgSize);
                                 const photoUrl = item.photoEvidence?.[imgIndex];
-                                if (photoUrl && photoUrl.startsWith('http')) { // Only add links for actual URLs
+                                if (photoUrl && photoUrl.startsWith('http')) {
                                     doc.link(x, y, imgSize, imgSize, { url: photoUrl });
                                 }
                             } catch (e) {
@@ -173,7 +169,6 @@ export const generateAuditReportPDF = async (
         yPos += 50;
     }
 
-    // --- Auditor Selfie ---
     const selfieDataURI = await getImageAsDataURI(checklist.auditor_selfie || '', 'image/jpeg');
     if (selfieDataURI) {
         if (yPos > pageHeight - 80) {

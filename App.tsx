@@ -20,7 +20,6 @@ import { generateAuditReportPDF } from './services/pdfService';
 import ProgressOverlay from './components/shared/ProgressOverlay';
 import type { Session } from '@supabase/supabase-js';
 
-
 // IMPORTANT: Upload your logo to Supabase storage and replace this URL. See README for instructions.
 const LOGO_URL = "https://xkzmddgcwcqvhicdqrpa.supabase.co/storage/v1/object/public/field-ops-photos/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1%20(1).jpg";
 
@@ -49,8 +48,8 @@ const LoginPage: React.FC = () => {
             // The onAuthStateChange listener in App.tsx will handle the redirect.
         } catch (err: any) {
             setError(err.error_description || err.message || "An unknown error occurred.");
-            setLoading(false);
         }
+        setLoading(false);
     };
 
     return (
@@ -258,7 +257,6 @@ const App: React.FC = () => {
         window.removeEventListener('pageshow', handlePageShow);
     };
   }, [setupUserSession]);
-
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -288,7 +286,11 @@ const App: React.FC = () => {
         setUsers(usersRes.data as User[]);
         setChecklists(processedChecklists as unknown as Checklist[]);
         setTasks(tasksRes.data as unknown as Task[]);
-        setChecklistTemplates(templatesRes.data as unknown as ChecklistTemplate[]);
+        const processedTemplates = (templatesRes.data || []).map((t: any) => ({
+          ...t,
+          items: Array.isArray(t.items) ? t.items : [],
+        }));
+        setChecklistTemplates(processedTemplates as unknown as ChecklistTemplate[]);
         setOutlets(outletsRes.data as Outlet[]);
     } catch (error: any) {
         console.error("Error fetching data:", error);
@@ -421,6 +423,7 @@ const App: React.FC = () => {
       required: !!item.required,
       requireNote: !!item.requireNote,
       minPhotos: typeof item.minPhotos === 'number' ? item.minPhotos : 0,
+      photoSource: item.photoSource === 'upload' ? 'upload' : 'live',
     }));
 
     const payload = {
@@ -512,6 +515,7 @@ const App: React.FC = () => {
             required: item.required,
             requireNote: item.requireNote || false,
             minPhotos: item.minPhotos || 0,
+            photoSource: item.photoSource || 'live',
             
             // Fields from ChecklistItem
             value: null,
@@ -649,30 +653,23 @@ const App: React.FC = () => {
           .eq('id', id)
           .select()
           .single();
-
       if (error) {
-        // FIX: Throw a proper Error object with a clear message. The raw Supabase error object
-        // can cause "[object Object]" to be displayed in alerts.
         throw new Error(`Failed to save checklist: ${error.message}`);
       }
       
       setChecklists(prev => prev.map(c => c.id === id ? data as Checklist : c));
       alert("Checklist submitted successfully!");
       
-      // FIX: Clean up session storage after a successful submission before navigating away.
       sessionStorage.removeItem(`checklistState_${completedChecklist.id}`);
       sessionStorage.removeItem(`checklistIndex_${completedChecklist.id}`);
       
       handleBackToList();
-
     } catch (error: unknown) {
         console.error("Submission failed:", error);
-        // FIX: Improved error handling to prevent "[object Object]" alerts.
-        // This ensures a clear, human-readable error message is always shown to the user.
         let errorMessage = "An unknown error occurred. Please check the console for details.";
         if (error instanceof Error) {
             errorMessage = error.message;
-        } else if (error && typeof error === 'object' && 'message' in error) {
+        } else if (error && typeof error === 'object' && 'message' in (error as any)) {
             errorMessage = String((error as { message: string }).message);
         }
         alert(`Submission failed: ${errorMessage}`);
@@ -728,13 +725,20 @@ const App: React.FC = () => {
   const renderView = () => {
     switch (view) {
       case 'admin_dashboard':
-        return <AdminDashboardView setView={setView} usersCount={users.length} />;
+        return <AdminDashboardView setView={setView} users={users} outlets={outlets} templates={checklistTemplates} checklists={checklists} />;
       case 'auditor_dashboard':
         return <AuditorDashboardView user={currentUser} onSelectChecklist={handleSelectChecklist} checklists={checklists} tasks={tasks} users={users} onResolveTask={handleResolveTask} />;
       case 'checklists':
         return selectedChecklist
           ? <ChecklistView checklist={selectedChecklist} onBack={handleBackToList} onSubmit={handleChecklistSubmit} onLogout={handleLogout} isSubmitting={!!submissionProgress} />
           : <LoadingSpinner message="Restoring checklist..." />;
+    
+  
+    
+  
+
+
+  
       case 'findings':
         return <FindingsView tasks={tasks} checklists={checklists} users={users} onResolveTask={handleResolveTask} />;
       case 'reports':

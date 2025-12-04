@@ -61,7 +61,6 @@ const AssignmentView: React.FC<AssignmentViewProps> = ({ users, outlets, templat
 
   const handleSubmit = () => {
     if (!selectedAuditorId || selectedOutletIds.length === 0 || selectedTemplateIds.length === 0 || !dueDate) {
-      // FIX: Alert message is now in Indonesian for better user feedback.
       alert('Silakan pilih auditor, setidaknya satu outlet, setidaknya satu templat, dan tanggal jatuh tempo.');
       return;
     }
@@ -181,6 +180,7 @@ const AssignmentView: React.FC<AssignmentViewProps> = ({ users, outlets, templat
                 </div>
                 <Button 
                     onClick={handleSubmit} 
+                    disabled={assignmentsToCreate === 0 || !selectedAuditorId || !dueDate}
                     className="mt-4 md:mt-0 w-full md:w-auto"
                 >
                     <ClipboardPlus className="mr-2" />
@@ -195,11 +195,11 @@ const AssignmentView: React.FC<AssignmentViewProps> = ({ users, outlets, templat
                 <table className="w-full text-left text-sm">
                     <thead className="bg-base-200">
                         <tr>
-                            <th className="p-3 font-semibold whitespace-nowrap">Title</th>
-                            <th className="p-3 font-semibold whitespace-nowrap">Location</th>
-                            <th className="p-3 font-semibold whitespace-nowrap">Assigned To</th>
-                            <th className="p-3 font-semibold whitespace-nowrap">Due Date</th>
-                            <th className="p-3 font-semibold whitespace-nowrap">Status</th>
+                            <th className="p-3 font-semibold">Title</th>
+                            <th className="p-3 font-semibold">Location</th>
+                            <th className="p-3 font-semibold">Assigned To</th>
+                            <th className="p-3 font-semibold">Due Date</th>
+                            <th className="p-3 font-semibold">Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -207,9 +207,9 @@ const AssignmentView: React.FC<AssignmentViewProps> = ({ users, outlets, templat
                             const auditor = checklist.assigned_to ? userMap.get(checklist.assigned_to) : null;
                             return (
                                 <tr key={checklist.id} className="border-b hover:bg-base-200/50">
-                                    <td className="p-3 font-medium text-neutral whitespace-nowrap">{checklist.title}</td>
-                                    <td className="p-3 whitespace-nowrap">{checklist.location}</td>
-                                    <td className="p-3 whitespace-nowrap">
+                                    <td className="p-3 font-medium text-neutral">{checklist.title}</td>
+                                    <td className="p-3">{checklist.location}</td>
+                                    <td className="p-3">
                                         {auditor ? (
                                             <div className="flex items-center">
                                                 <Avatar user={auditor} className="w-7 h-7 mr-2" />
@@ -219,8 +219,8 @@ const AssignmentView: React.FC<AssignmentViewProps> = ({ users, outlets, templat
                                             <span className="text-gray-400 italic">Unassigned</span>
                                         )}
                                     </td>
-                                    <td className="p-3 whitespace-nowrap">{checklist.due_date}</td>
-                                    <td className="p-3 whitespace-nowrap">{getStatusBadge(checklist.status)}</td>
+                                    <td className="p-3">{checklist.due_date}</td>
+                                    <td className="p-3">{getStatusBadge(checklist.status)}</td>
                                 </tr>
                             );
                         }) : (
