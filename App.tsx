@@ -112,10 +112,21 @@ const App: React.FC = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [view, setView] = useState<View>('admin_dashboard');
+  const [view, setView] = useState<View>('auditor_dashboard');
   const [selectedChecklist, setSelectedChecklist] = useState<Checklist | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [submissionProgress, setSubmissionProgress] = useState<{ message: string; progress: number } | null>(null);
+
+  const safeSetView = useCallback((next: View) => {
+    if (currentUser?.role === Role.Auditor) {
+      const adminOnlyViews = new Set(['admin_dashboard','assignments','findings','reports','user_management','templates','outlet_management']);
+      if (adminOnlyViews.has(next)) {
+        setView('auditor_dashboard');
+        return;
+      }
+    }
+    setView(next);
+  }, [currentUser]);
 
   // Fetch user profile and set view based on role
   const setupUserSession = useCallback(async (userId: string, userEmail?: string) => {
@@ -166,9 +177,24 @@ const App: React.FC = () => {
             setView('checklists');
         } else {
             const templateActive = localStorage.getItem('templateDraftActive') === '1';
-            if (templateActive) setView('templates');
-            else if (userProfile.role === Role.Admin) setView('admin_dashboard');
-            else setView('auditor_dashboard');
+            if (templateActive) {
+              setView('templates');
+            } else {
+              const lastViewRaw = localStorage.getItem('lastView');
+              const validViews = new Set(['checklists','findings','reports','admin_dashboard','auditor_dashboard','user_management','templates','outlet_management','assignments']);
+              const adminOnlyViews = new Set(['admin_dashboard','assignments','findings','reports','user_management','templates','outlet_management']);
+              if (lastViewRaw && validViews.has(lastViewRaw)) {
+                if (userProfile.role === Role.Auditor && adminOnlyViews.has(lastViewRaw)) {
+                  safeSetView('auditor_dashboard');
+                } else {
+                  safeSetView(lastViewRaw as View);
+                }
+              } else if (userProfile.role === Role.Admin) {
+                safeSetView('admin_dashboard');
+              } else {
+                safeSetView('auditor_dashboard');
+              }
+            }
         }
       } else {
         throw new Error("User profile could not be found or created. This is an unexpected error.");
@@ -318,7 +344,7 @@ const App: React.FC = () => {
               const found = checklists.find(c => c.id === activeChecklistId);
               if (found) {
                   setSelectedChecklist(found);
-                  setView('checklists');
+                  safeSetView('checklists');
               } else {
                   sessionStorage.removeItem('activeChecklistId');
                   localStorage.removeItem('activeChecklistId');
@@ -330,11 +356,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
     if (activeChecklistId && view !== 'checklists') {
-      setView('checklists');
+      safeSetView('checklists');
     } else {
       const templateActive = localStorage.getItem('templateDraftActive') === '1';
       if (templateActive && view !== 'templates') {
-        setView('templates');
+        safeSetView('templates');
       }
     }
   }, [view]);
@@ -354,7 +380,7 @@ const App: React.FC = () => {
 
   const handleSelectChecklist = useCallback((checklist: Checklist) => {
     setSelectedChecklist(checklist);
-    setView('checklists');
+    safeSetView('checklists');
     // FIX: Save the active checklist ID to session storage. This allows us to restore the
     // state if the page reloads, which is common on mobile after using the camera.
     sessionStorage.setItem('activeChecklistId', checklist.id);
@@ -372,8 +398,7 @@ const App: React.FC = () => {
     localStorage.removeItem('activeChecklistId');
     
     setSelectedChecklist(null);
-    if (currentUser?.role === Role.Admin) setView('admin_dashboard');
-    else setView('auditor_dashboard');
+    safeSetView(currentUser?.role === Role.Admin ? 'admin_dashboard' : 'auditor_dashboard');
   }, [currentUser, selectedChecklist]);
 
   const handleAddUser = async (newUser: Omit<User, 'id' | 'avatar_url'>) => {
@@ -710,6 +735,39 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateAssignment = async (checklistId: string, updates: Partial<Checklist>) => {
+    const { data, error } = await (supabase.from('checklists') as any)
+      .update(updates)
+      .eq('id', checklistId)
+      .select()
+      .single();
+    if (error) {
+      alert(`Error updating assignment: ${error.message}`);
+      throw error;
+    }
+    if (data) {
+      setChecklists(prev => prev.map(c => c.id === checklistId ? data as Checklist : c));
+    }
+  };
+
+  const handleCancelAssignment = async (checklistId: string) => {
+    const { error } = await supabase.from('checklists').delete().eq('id', checklistId);
+    if (error) {
+      alert(`Error canceling assignment: ${error.message}`);
+      throw error;
+    }
+    setChecklists(prev => prev.filter(c => c.id !== checklistId));
+  };
+
+  // Persist last view across renders; must be declared before any early returns
+  useEffect(() => {
+    try {
+      localStorage.setItem('lastView', view);
+    } catch (_) { void 0; }
+  }, [view]);
+
+  
+
   if (isAuthLoading) {
     return <LoadingSpinner message="Checking authentication..." />;
   }
@@ -750,12 +808,14 @@ const App: React.FC = () => {
       case 'outlet_management':
         return <OutletManagementView outlets={outlets} users={users} onAddOutlet={handleAddOutlet} onUpdateOutlet={handleUpdateOutlet} onDeleteOutlet={handleDeleteOutlet} />;
       case 'assignments':
-        return <AssignmentView users={users} outlets={outlets} templates={checklistTemplates} checklists={checklists} onCreateAssignments={handleCreateAssignments} onCancel={() => setView('admin_dashboard')} />;
+        return <AssignmentView users={users} outlets={outlets} templates={checklistTemplates} checklists={checklists} onCreateAssignments={handleCreateAssignments} onUpdateAssignment={handleUpdateAssignment} onCancelAssignment={handleCancelAssignment} onCancel={() => safeSetView('admin_dashboard')} />;
       default:
         return <div>Not implemented</div>;
     }
   };
   
+  
+
   if (view === 'checklists' && selectedChecklist) {
       return (
           <>
@@ -770,7 +830,7 @@ const App: React.FC = () => {
         {submissionProgress && <ProgressOverlay message={submissionProgress.message} progress={submissionProgress.progress} />}
         <Sidebar
             currentView={view}
-            setView={setView}
+            setView={safeSetView}
             isOpen={sidebarOpen}
             setIsOpen={setSidebarOpen}
             user={currentUser}

@@ -94,23 +94,24 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
             const shouldHaveFinding = updatedItem.value === 'no' || updatedItem.value === 'red-flag';
 
             if (shouldHaveFinding) {
-              // A finding should exist. Create it if it's new, or update the existing one.
+              const existingFinding = updatedItem.finding || item.finding || null;
+              const defaultDays = updatedItem.value === 'red-flag' ? 3 : 7;
+              const defaultDate = new Date(Date.now() + defaultDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+              const isValueChanged = Object.prototype.hasOwnProperty.call(updates, 'value') && updates.value !== item.value;
+              const computedDue = isValueChanged ? defaultDate : (existingFinding?.due_date || defaultDate);
               updatedItem.finding = {
-                id: item.finding?.id || `task-${Date.now()}`,
+                id: existingFinding?.id || `task-${Date.now()}`,
                 checklist_item_id: item.id,
-                title: item.finding?.title || `Issue with: ${item.question}`,
+                title: existingFinding?.title || `Issue with: ${item.question}`,
                 priority: updatedItem.value === 'red-flag' ? TaskPriority.High : TaskPriority.Medium,
-                assigned_to: item.finding?.assigned_to || checklist.assigned_to,
-                due_date: item.finding?.due_date || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                status: item.finding?.status || 'open',
-                description: updatedItem.note || '',
-                photo: updatedItem.photoEvidence?.[0] || item.photoEvidence?.[0] || null, // Use the first photo as the primary finding photo
-                // FIX: Add missing `proof_of_fix` and `checklist_id` properties to ensure
-                // the created `finding` object conforms to the `Task` interface.
-                proof_of_fix: item.finding?.proof_of_fix || null,
-                checklist_id: item.finding?.checklist_id || checklist.id,
-                // FIX: Add missing `created_at` property to conform to the Task interface.
-                created_at: item.finding?.created_at || new Date().toISOString(),
+                assigned_to: existingFinding?.assigned_to || checklist.assigned_to,
+                due_date: computedDue,
+                status: existingFinding?.status || 'open',
+                description: updatedItem.note || existingFinding?.description || '',
+                photo: updatedItem.photoEvidence?.[0] || item.photoEvidence?.[0] || existingFinding?.photo || null,
+                proof_of_fix: existingFinding?.proof_of_fix || null,
+                checklist_id: existingFinding?.checklist_id || checklist.id,
+                created_at: existingFinding?.created_at || new Date().toISOString(),
               };
             } else if (updatedItem.value === 'yes') {
               updatedItem.finding = null;

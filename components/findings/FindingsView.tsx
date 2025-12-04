@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Task, Checklist, User, TaskPriority } from '../../types';
 import Card from '../shared/Card';
 import Avatar from '../shared/Avatar';
-import { Flag, MapPin, Calendar, HelpCircle, FileText, CheckSquare, Wrench, MessageSquare } from 'lucide-react';
+import { Flag, MapPin, Calendar, HelpCircle, FileText, CheckSquare, Wrench, MessageSquare, Download } from 'lucide-react';
+import { generateFindingsReportPDF } from '../../services/pdfService';
 import Button from '../shared/Button';
 import ResolveFindingModal from './ResolveFindingModal';
 import ImageModal from '../shared/ImageModal';
@@ -42,6 +43,17 @@ const getStatusStyles = (status: Task['status']) => {
   }
 };
 
+const getResolvedDate = (proofUrl?: string | null): string | null => {
+  if (!proofUrl) return null;
+  const match = /proofs\/(?:[^_]+)_([0-9]+)\.jpg/.exec(proofUrl);
+  if (match && match[1]) {
+    const ts = Number(match[1]);
+    if (!Number.isNaN(ts)) {
+      return new Date(ts).toISOString().split('T')[0];
+    }
+  }
+  return null;
+};
 const FindingCard: React.FC<{ finding: EnrichedFinding; onResolveClick: (finding: EnrichedFinding) => void; onImageClick: (url: string) => void; }> = ({ finding, onResolveClick, onImageClick }) => {
     const priorityStyles = getPriorityStyles(finding.priority);
     const statusStyles = getStatusStyles(finding.status);
@@ -82,6 +94,9 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; onResolveClick: (finding
                         <p className="flex items-center"><MapPin size={14} className="mr-2 text-gray-400"/> <strong>Location:</strong>&nbsp;{finding.location || 'N/A'}</p>
                         <p className="flex items-center"><FileText size={14} className="mr-2 text-gray-400"/> <strong>Audit:</strong>&nbsp;{finding.checklistTitle || 'N/A'}</p>
                         <p className="flex items-center"><Calendar size={14} className="mr-2 text-gray-400"/> <strong>Due Date:</strong>&nbsp;{finding.due_date || 'N/A'}</p>
+                        {finding.status === 'resolved' && (
+                          <p className="flex items-center"><Calendar size={14} className="mr-2 text-gray-400"/> <strong>Resolved:</strong>&nbsp;{getResolvedDate(finding.proof_of_fix) || 'N/A'}</p>
+                        )}
                     </div>
 
                     <div className="flex flex-wrap gap-4 mt-4 pt-3 border-t border-base-200">
@@ -149,6 +164,7 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; onResolveClick: (finding
 const FindingsView: React.FC<FindingsViewProps> = ({ tasks, checklists, users, onResolveTask }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [locationFilter, setLocationFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFinding, setSelectedFinding] = useState<EnrichedFinding | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -185,9 +201,29 @@ const FindingsView: React.FC<FindingsViewProps> = ({ tasks, checklists, users, o
     return enrichedFindings.filter(finding => {
       const statusMatch = statusFilter === 'all' || finding.status === statusFilter;
       const priorityMatch = priorityFilter === 'all' || finding.priority === priorityFilter;
-      return statusMatch && priorityMatch;
+      const locationMatch = locationFilter === 'all' || (finding.location || '') === locationFilter;
+      return statusMatch && priorityMatch && locationMatch;
     });
-  }, [enrichedFindings, statusFilter, priorityFilter]);
+  }, [enrichedFindings, statusFilter, priorityFilter, locationFilter]);
+
+  const locations = useMemo(() => {
+    const set = new Set<string>();
+    checklists.forEach(c => { if (c.location) set.add(c.location); });
+    return Array.from(set).sort();
+  }, [checklists]);
+
+  const handleDownloadReport = async () => {
+    const title = locationFilter === 'all' ? 'All Locations' : locationFilter;
+    const blob = await generateFindingsReportPDF(filteredFindings, checklists, users, `Findings Report - ${title}`);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `findings_${title.replace(/\s+/g, '_').toLowerCase()}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
   
   const handleOpenResolveModal = (finding: EnrichedFinding) => {
     setSelectedFinding(finding);
@@ -239,6 +275,21 @@ const FindingsView: React.FC<FindingsViewProps> = ({ tasks, checklists, users, o
                         <option value={TaskPriority.Medium}>Medium</option>
                         <option value={TaskPriority.Low}>Low</option>
                     </select>
+                </div>
+                <div>
+                    <label htmlFor="location-filter" className="block text-sm font-medium text-gray-700">Location</label>
+                    <select id="location-filter" value={locationFilter} onChange={e => setLocationFilter(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md">
+                        <option value="all">All</option>
+                        {locations.map(loc => (
+                          <option key={loc} value={loc}>{loc}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="ml-auto">
+                    <Button onClick={handleDownloadReport} variant="primary" className="!text-sm !py-2">
+                      <Download size={16} className="mr-2" />
+                      Download PDF
+                    </Button>
                 </div>
             </div>
         </Card>

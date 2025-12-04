@@ -191,7 +191,7 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
                                         />
                                     </div>
 
-                                    {item.type === 'photo' && (
+                                    {(item.type === 'photo' || (item.minPhotos || 0) > 0) && (
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Photo Source</label>
                                         <select

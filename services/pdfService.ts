@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { Checklist, User } from '../types';
+import { Checklist, User, Task, TaskPriority } from '../types';
 
 // Extend the jsPDF interface to include autoTable
 // FIX: Removed module augmentation for 'jspdf' which was causing a "module not found" error during compilation.
@@ -185,4 +185,86 @@ export const generateAuditReportPDF = async (
     }
     
     return doc.output('blob');
+};
+
+export const generateFindingsReportPDF = async (
+  findings: Task[],
+  checklists: Checklist[],
+  users: User[],
+  reportTitle: string
+): Promise<Blob> => {
+  const doc = new jsPDF();
+  let yPos = 20;
+
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text(reportTitle || 'Findings Report', 105, yPos, { align: 'center' });
+  yPos += 12;
+
+  const checklistMap = new Map<string, Checklist>(checklists.map(c => [c.id, c]));
+  const userMap = new Map<string, User>(users.map(u => [u.id, u]));
+
+  const toResolvedDate = (proofUrl?: string | null) => {
+    if (!proofUrl) return '';
+    const match = /proofs\/(?:[^_]+)_([0-9]+)\.jpg/.exec(proofUrl);
+    if (match && match[1]) {
+      const ts = Number(match[1]);
+      if (!Number.isNaN(ts)) return new Date(ts).toISOString().split('T')[0];
+    }
+    return '';
+  };
+
+  const images = await Promise.all(
+    findings.map(f => Promise.all([
+      getImageAsDataURI(f.photo || '', 'image/jpeg'),
+      getImageAsDataURI(f.proof_of_fix || '', 'image/jpeg')
+    ]))
+  );
+
+  const body = findings.map(f => {
+    const checklist = f.checklist_id ? checklistMap.get(f.checklist_id) : undefined;
+    const location = checklist?.location || '';
+    const auditTitle = checklist?.title || '';
+    const assignee = f.assigned_to ? userMap.get(f.assigned_to)?.name || '' : '';
+    const status = f.status || '';
+    const priority = f.priority || '' as unknown as TaskPriority;
+    const due = f.due_date || '';
+    const resolved = status === 'resolved' ? toResolvedDate(f.proof_of_fix) : '';
+    const created = f.created_at ? new Date(f.created_at).toISOString().split('T')[0] : '';
+    return [f.title, location, auditTitle, String(priority), status, due, resolved, assignee, created, '', ''];
+  });
+
+  (doc as any).autoTable({
+    startY: yPos,
+    head: [['Title', 'Location', 'Audit', 'Priority', 'Status', 'Due', 'Resolved', 'Assignee', 'Created', 'Evidence', 'Proof of Fix']],
+    body,
+    theme: 'striped',
+    styles: { fontSize: 9, cellPadding: 2 },
+    headStyles: { fillColor: [128, 0, 0] },
+    didDrawCell: (data: any) => {
+      if (data.section === 'body' && (data.column.index === 9 || data.column.index === 10)) {
+        const rowIdx = data.row.index;
+        const colIdx = data.column.index;
+        const imgDataUri = colIdx === 9 ? images[rowIdx]?.[0] : images[rowIdx]?.[1];
+        if (imgDataUri) {
+          const padding = 2;
+          const availableWidth = data.cell.width - (padding * 2);
+          const availableHeight = data.cell.height - (padding * 2);
+          const size = Math.min(24, availableWidth, availableHeight);
+          const x = data.cell.x + (data.cell.width - size) / 2;
+          const y = data.cell.y + (data.cell.height - size) / 2;
+          try {
+            doc.addImage(imgDataUri, 'JPEG', x, y, size, size);
+            const f = findings[rowIdx];
+            const url = colIdx === 9 ? f.photo : f.proof_of_fix;
+            if (url && url.startsWith('http')) {
+              doc.link(x, y, size, size, { url });
+            }
+          } catch {}
+        }
+      }
+    }
+  });
+
+  return doc.output('blob');
 };

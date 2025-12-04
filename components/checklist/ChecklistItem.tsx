@@ -256,6 +256,17 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
               className="w-full p-3 border border-gray-200 rounded-lg focus:ring-primary focus:border-primary shadow-sm"
           />
       )}
+
+      {item.finding && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+            <div className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-700">
+              {item.finding?.due_date || 'N/A'}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

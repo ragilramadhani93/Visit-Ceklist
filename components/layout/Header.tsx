@@ -45,7 +45,7 @@ const Header: React.FC<HeaderProps> = ({ user, onMenuClick, onLogout }) => {
          <button onClick={onMenuClick} className="lg:hidden text-gray-500 mr-4">
             <Menu size={24} />
          </button>
-         <h1 className="text-xl font-bold text-neutral">Field Ops Pro</h1>
+         <h1 className="text-xl font-bold text-neutral">Opsify</h1>
       </div>
       <div className="flex items-center space-x-4">
         <button className="text-gray-500 hover:text-primary">

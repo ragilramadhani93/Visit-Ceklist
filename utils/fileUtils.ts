@@ -45,19 +45,19 @@ export const resizeImage = (file: Blob, maxWidth = 1280, maxHeight = 1280, quali
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         URL.revokeObjectURL(url);
-        reject(new Error('Canvas context not available'));
+        resolve(file);
         return;
       }
       ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
       canvas.toBlob((blob) => {
         URL.revokeObjectURL(url);
         if (blob) resolve(blob);
-        else reject(new Error('Failed to create blob'));
+        else resolve(file);
       }, 'image/jpeg', quality);
     };
     img.onerror = (_e) => {
       URL.revokeObjectURL(url);
-      reject(new Error('Image load error'));
+      resolve(file);
     };
     img.src = url;
   });
