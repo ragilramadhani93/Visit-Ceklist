@@ -658,7 +658,15 @@ const App: React.FC = () => {
 
       // Upload the PDF report
       updateProgress("Uploading PDF report...");
-      const reportUrl = await uploadFile('field-ops-reports', pdfBlob, `reports/${completedChecklist.id}_${checklistForDb.location?.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+      
+      // Generate filename based on Auditor, Location, and Date
+      const auditorName = currentUser?.name?.replace(/\s+/g, '_') || 'Auditor';
+      const locationName = checklistForDb.location?.replace(/\s+/g, '_') || 'Location';
+      const dateStr = new Date().toISOString().split('T')[0];
+      // Append short ID to ensure uniqueness
+      const fileName = `reports/${auditorName}_${locationName}_${dateStr}_${completedChecklist.id.slice(0, 6)}.pdf`;
+
+      const reportUrl = await uploadFile('field-ops-reports', pdfBlob, fileName);
       checklistForDb.report_url = reportUrl;
       
       // Save new findings (tasks) using the final photo URLs
