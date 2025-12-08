@@ -468,6 +468,7 @@ const App: React.FC = () => {
       requireNote: !!item.requireNote,
       minPhotos: typeof item.minPhotos === 'number' ? item.minPhotos : 0,
       photoSource: item.photoSource === 'upload' ? 'upload' : 'live',
+      evidenceType: item.evidenceType || 'photo',
     }));
 
     const payload = {
@@ -560,6 +561,7 @@ const App: React.FC = () => {
             requireNote: item.requireNote || false,
             minPhotos: item.minPhotos || 0,
             photoSource: item.photoSource || 'live',
+            evidenceType: item.evidenceType || 'photo',
             
             // Fields from ChecklistItem
             value: null,
@@ -615,11 +617,6 @@ const App: React.FC = () => {
     try {
       setSubmissionProgress({ message: "Starting submission...", progress: 0 });
 
-      // FIX: Generate PDF *before* uploading images to prevent race conditions.
-      // The PDF service now handles raw base64 data directly.
-      updateProgress("Generating PDF report...");
-      const pdfBlob = await generateAuditReportPDF(completedChecklist, currentUser, LOGO_URL);
-
       // Upload signature
       updateProgress("Uploading signature...");
       let signatureUrl = completedChecklist.auditor_signature;
@@ -644,10 +641,14 @@ const App: React.FC = () => {
               const uploadedPhotoUrls: string[] = [];
               for (const photo of item.photoEvidence) {
                   updateProgress(`Uploading photo for "${item.question.substring(0, 20)}..."`);
+                  // Check if it's already a URL (e.g. from previous edit)
                   if (photo && !photo.startsWith('http')) {
-                      const photoBlob = base64ToBlob(photo, 'image/jpeg');
-                      const photoUrl = await uploadFile('field-ops-photos', photoBlob, `evidence/${completedChecklist.id}_${item.id}_${Date.now()}.jpg`);
-                      uploadedPhotoUrls.push(photoUrl);
+                      // Determine mime type based on evidence type
+                      const mimeType = item.evidenceType === 'video' ? 'video/webm' : 'image/jpeg';
+                      const ext = item.evidenceType === 'video' ? 'webm' : 'jpg';
+                      const blob = base64ToBlob(photo, mimeType);
+                      const url = await uploadFile('field-ops-photos', blob, `evidence/${completedChecklist.id}_${item.id}_${Date.now()}.${ext}`);
+                      uploadedPhotoUrls.push(url);
                   } else if (photo) {
                       uploadedPhotoUrls.push(photo);
                   }
@@ -655,6 +656,10 @@ const App: React.FC = () => {
               item.photoEvidence = uploadedPhotoUrls;
           }
       }
+
+      // Generate PDF report (Moved after uploads to ensure links work)
+      updateProgress("Generating PDF report...");
+      const pdfBlob = await generateAuditReportPDF(checklistForDb, currentUser, LOGO_URL);
 
       // Upload the PDF report
       updateProgress("Uploading PDF report...");

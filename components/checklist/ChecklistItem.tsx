@@ -1,8 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { ChecklistItem as ChecklistItemType } from '../../types';
-import { Camera, X } from 'lucide-react';
+import { Camera, X, Video as VideoIcon } from 'lucide-react';
 import { blobToBase64, resizeImage, base64ToBlob } from '../../utils/fileUtils';
 import SelfieCapture from './SelfieCapture';
+import VideoRecorder from './VideoRecorder';
 import { Capacitor } from '@capacitor/core';
 import { Camera as NativeCam, CameraResultType, CameraSource } from '@capacitor/camera';
 import AIPhotoAnalysis from './AIPhotoAnalysis';
@@ -16,6 +17,8 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [previews, setPreviews] = useState<string[]>([]);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [videoRecorderOpen, setVideoRecorderOpen] = useState(false);
+
   useEffect(() => {
     const photoSources = item.photoEvidence || [];
     const newPreviews = photoSources.map(source => {
@@ -23,12 +26,36 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
         // It's an already uploaded URL that is safe to use.
         return source;
       }
-      // It's a base64 string from a new photo or restored session.
-      // Format it as a data URI so it can be used directly in an <img> src.
+      if (source.startsWith('data:')) {
+        return source;
+      }
+      // It's a base64 string from a new photo/video or restored session.
+      if (item.evidenceType === 'video') {
+          return `data:video/webm;base64,${source}`;
+      }
       return `data:image/jpeg;base64,${source}`;
     });
     setPreviews(newPreviews);
-  }, [item.photoEvidence]);
+  }, [item.photoEvidence, item.evidenceType]);
+
+  const handleVideoCapture = async (blob: Blob) => {
+    try {
+        const base64String = await blobToBase64(blob);
+        const newEvidence = [...(item.photoEvidence || []), base64String];
+        let updates: Partial<ChecklistItemType> = { photoEvidence: newEvidence };
+        
+        if (item.type === 'photo') {
+            updates.value = newEvidence;
+            updates.aiAnalysisStatus = 'idle';
+            updates.aiAnalysisResult = '';
+        }
+        onChange(item.id, updates);
+    } catch (e) {
+        console.error(e);
+    } finally {
+        setVideoRecorderOpen(false);
+    }
+  };
 
   const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -143,15 +170,22 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
     const requiredPhotos = item.minPhotos || (item.type === 'photo' && item.required ? 1 : 0);
     const photoCount = item.photoEvidence?.length || 0;
     const source = item.photoSource || 'live';
+    const isVideo = item.evidenceType === 'video';
 
     return (
       <div className="mt-6">
-        <p className="text-sm font-semibold text-gray-600 text-center">Select media to add to your answer</p>
-        {requiredPhotos > 0 && <p className="text-xs text-gray-500 mb-2 text-center">(Minimum: {requiredPhotos} photo{requiredPhotos > 1 ? 's' : ''}, Uploaded: {photoCount})</p>}
+        <p className="text-sm font-semibold text-gray-600 text-center">
+          Select {isVideo ? 'video' : 'media'} to add to your answer
+        </p>
+        {requiredPhotos > 0 && (
+          <p className="text-xs text-gray-500 mb-2 text-center">
+            (Minimum: {requiredPhotos} {isVideo ? 'video' : 'photo'}{requiredPhotos > 1 ? 's' : ''}, Uploaded: {photoCount})
+          </p>
+        )}
         
         <input
           type="file"
-          accept="image/*"
+          accept={isVideo ? "video/*" : "image/*"}
           capture="environment"
           ref={photoInputRef}
           onChange={handlePhotoChange}
@@ -162,11 +196,19 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
             <div className="mt-2 grid grid-cols-3 gap-2">
                 {previews.map((previewSrc, index) => (
                     <div key={index} className="relative group w-full aspect-square">
-                        <img src={previewSrc} alt={`Preview ${index + 1}`} className="w-full h-full object-cover rounded-lg shadow-md" />
+                        {isVideo ? (
+                            <video 
+                                src={previewSrc} 
+                                className="w-full h-full object-cover rounded-lg shadow-md" 
+                                controls 
+                            />
+                        ) : (
+                            <img src={previewSrc} alt={`Preview ${index + 1}`} className="w-full h-full object-cover rounded-lg shadow-md" />
+                        )}
                         <button 
                             onClick={() => removePhoto(index)} 
                             className="absolute top-1 right-1 bg-black bg-opacity-60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
-                            aria-label={`Remove photo ${index + 1}`}
+                            aria-label={`Remove ${isVideo ? 'video' : 'photo'} ${index + 1}`}
                         >
                             <X size={16} />
                         </button>
@@ -181,13 +223,17 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
                 onClick={() => photoInputRef.current?.click()}
                 className="w-32 h-32 bg-gray-100 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors border-2 border-dashed border-gray-300 p-2"
               >
-                <Camera size={32} />
-                <span className="mt-2 text-sm font-semibold">Upload Photo</span>
+                {isVideo ? <VideoIcon size={32} /> : <Camera size={32} />}
+                <span className="mt-2 text-sm font-semibold">Upload {isVideo ? 'Video' : 'Photo'}</span>
                 {requiredPhotos > 0 && <span className="mt-1 text-xs text-gray-500">(Min: {requiredPhotos})</span>}
               </button>
             ) : (
               <button 
                 onClick={() => {
+                  if (isVideo) {
+                    setVideoRecorderOpen(true);
+                    return;
+                  }
                   if (Capacitor.isNativePlatform()) {
                     handleNativeCamera();
                     return;
@@ -200,8 +246,8 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
                 }} 
                 className="w-32 h-32 bg-gray-100 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors border-2 border-dashed border-gray-300 p-2"
               >
-                <Camera size={32} />
-                <span className="mt-2 text-sm font-semibold">Take Photo</span>
+                {isVideo ? <VideoIcon size={32} /> : <Camera size={32} />}
+                <span className="mt-2 text-sm font-semibold">{isVideo ? 'Record Video' : 'Take Photo'}</span>
                 {requiredPhotos > 0 && <span className="mt-1 text-xs text-gray-500">(Min: {requiredPhotos})</span>}
               </button>
             )}
@@ -243,6 +289,9 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
           )}
           {cameraOpen && (
             <SelfieCapture onCancel={() => setCameraOpen(false)} onCapture={handleCameraCapture} />
+          )}
+          {videoRecorderOpen && (
+              <VideoRecorder onCancel={() => setVideoRecorderOpen(false)} onCapture={handleVideoCapture} />
           )}
         </>
       )}

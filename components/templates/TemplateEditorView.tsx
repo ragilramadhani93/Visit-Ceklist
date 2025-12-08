@@ -181,7 +181,21 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
                                     </div>
                                     
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Photos</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Evidence Type</label>
+                                        <select
+                                            value={item.evidenceType || 'photo'}
+                                            onChange={(e) => handleItemChange(index, 'evidenceType', e.target.value)}
+                                            className="w-full px-2 py-1.5 border border-gray-300 bg-white rounded-md text-sm shadow-sm focus:ring-primary focus:border-primary"
+                                        >
+                                            <option value="photo">Photo</option>
+                                            <option value="video">Video (Max 15s)</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            {item.evidenceType === 'video' ? 'Min Videos' : 'Min Photos'}
+                                        </label>
                                         <input
                                             type="number"
                                             min="0"
@@ -193,7 +207,7 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
 
                                     {(item.type === 'photo' || (item.minPhotos || 0) > 0) && (
                                       <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Photo Source</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
                                         <select
                                           value={item.photoSource || 'live'}
                                           onChange={(e) => handleItemChange(index, 'photoSource', e.target.value)}

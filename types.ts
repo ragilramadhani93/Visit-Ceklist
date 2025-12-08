@@ -23,6 +23,7 @@ export interface ChecklistItemBase {
   requireNote?: boolean;
   minPhotos?: number; // Replaces requireLivePhoto
   photoSource?: 'live' | 'upload';
+  evidenceType?: 'photo' | 'video';
 }
 
 export interface ChecklistItem extends ChecklistItemBase {

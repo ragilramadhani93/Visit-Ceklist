@@ -35,7 +35,8 @@ const getImageAsDataURI = async (source: string, mimeType: string = 'image/jpeg'
 export const generateAuditReportPDF = async (
     checklist: Checklist,
     auditor: User | null,
-    logoUrl: string
+    logoUrl: string,
+    imageOverrides?: Record<string, string>
 ): Promise<Blob> => {
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -85,9 +86,16 @@ export const generateAuditReportPDF = async (
 
     // Pre-fetch all item images to be embedded in the table
     const itemImages = await Promise.all(
-      checklist.items.map(item =>
-        Promise.all((item.photoEvidence || []).map(photoSrc => getImageAsDataURI(photoSrc || '', 'image/jpeg')))
-      )
+      checklist.items.map(async item => {
+        if (item.evidenceType === 'video') {
+            if (imageOverrides && imageOverrides[item.id]) {
+                const uri = await getImageAsDataURI(imageOverrides[item.id]);
+                return uri ? [uri] : [];
+            }
+            return [];
+        }
+        return Promise.all((item.photoEvidence || []).map(photoSrc => getImageAsDataURI(photoSrc || '', 'image/jpeg')));
+      })
     );
 
     const tableData = checklist.items.map((item, index) => {
@@ -101,6 +109,9 @@ export const generateAuditReportPDF = async (
         if (item.type === 'photo' && Array.isArray(value)) {
             value = `${value.length} photo(s) attached`;
         }
+        if (item.evidenceType === 'video' && Array.isArray(item.photoEvidence)) {
+             value = `${item.photoEvidence.length} video(s) attached`;
+        }
         return [
             index + 1,
             item.question,
@@ -112,19 +123,79 @@ export const generateAuditReportPDF = async (
 
     (doc as any).autoTable({
         startY: yPos,
-        head: [['#', 'Question', 'Answer', 'Notes', 'Photos']],
+        head: [['#', 'Question', 'Answer', 'Notes', 'Photos/Videos']],
         body: tableData,
         theme: 'striped',
         styles: { fontSize: 9, cellPadding: 2, valign: 'middle' },
         headStyles: { fillColor: [128, 0, 0] },
         columnStyles: {
-            4: { cellWidth: 40, minCellHeight: 25 }, // Increased width for multiple photos
+            4: { cellWidth: 40, minCellHeight: 35 }, // Increased width for multiple photos
         },
         didDrawCell: (data: any) => {
             if (data.section === 'body' && data.column.index === 4) {
+                // Ensure we are on the correct page for adding links
+                if (doc.internal.getCurrentPageInfo().pageNumber !== data.pageNumber) {
+                    doc.setPage(data.pageNumber);
+                }
+
+                const item = checklist.items[data.row.index];
+                
+                if (item.evidenceType === 'video') {
+                     const count = item.photoEvidence?.length || 0;
+                     if (count > 0) {
+                         // Draw a video thumbnail placeholder (Gray box with Play icon)
+                         const thumbnailHeight = 20; 
+                         const thumbnailWidth = 30; 
+                         
+                         // Center the thumbnail
+                         const x = data.cell.x + (data.cell.width - thumbnailWidth) / 2;
+                         const y = data.cell.y + (data.cell.height - thumbnailHeight) / 2;
+
+                         // Check for override image
+                         const overrideImage = itemImages[data.row.index]?.[0];
+
+                         if (overrideImage) {
+                             try {
+                                doc.addImage(overrideImage, 'JPEG', x, y, thumbnailWidth, thumbnailHeight);
+                             } catch (e) {
+                                console.error("Error adding video thumbnail override:", e);
+                                // Fallback to gray box
+                                doc.setFillColor(60, 60, 60); 
+                                doc.roundedRect(x, y, thumbnailWidth, thumbnailHeight, 2, 2, 'F');
+                             }
+                         } else {
+                             // Draw Thumbnail Background (Dark Gray)
+                             doc.setFillColor(60, 60, 60); 
+                             doc.roundedRect(x, y, thumbnailWidth, thumbnailHeight, 2, 2, 'F');
+                         }
+                         
+                         // Draw Play Icon (White Triangle)
+                         doc.setFillColor(255, 255, 255);
+                         const triX = x + (thumbnailWidth / 2) - 2;
+                         const triY = y + (thumbnailHeight / 2) - 3;
+                         doc.triangle(triX, triY, triX, triY + 6, triX + 5, triY + 3, 'F');
+                         
+                         const firstUrl = item.photoEvidence?.[0];
+                         if (firstUrl && firstUrl.startsWith('http')) {
+                             // Link covering the thumbnail
+                             doc.link(x, y, thumbnailWidth, thumbnailHeight, { url: firstUrl });
+
+                             // Add explicit "Open Video" text link below
+                             doc.setTextColor(0, 0, 255);
+                             doc.setFontSize(8);
+                             const text = "Open Video";
+                             const textWidth = doc.getTextWidth(text);
+                             const textX = x + (thumbnailWidth - textWidth) / 2;
+                             const textY = y + thumbnailHeight + 4;
+                             doc.text(text, textX, textY);
+                             doc.link(textX, textY - 3, textWidth, 4, { url: firstUrl });
+                         }
+                     }
+                     return;
+                }
+
                 const imagesForRow = itemImages[data.row.index];
                 if (imagesForRow && imagesForRow.length > 0) {
-                    const item = checklist.items[data.row.index];
                     const maxImagesToShow = 3;
                     const padding = 1;
                     const availableWidth = data.cell.width - (padding * 2);

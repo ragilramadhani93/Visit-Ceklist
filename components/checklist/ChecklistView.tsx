@@ -278,7 +278,9 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
         <div className="text-center mb-6">
             <p className="font-semibold text-gray-500 text-sm">Question {currentItemIndex + 1} of {totalItems}</p>
             <h2 className="text-xl font-semibold my-2 text-gray-800">{currentItem.question}</h2>
-            <span className="text-primary font-medium text-sm">(Reference)</span>
+            <div className="flex justify-center gap-2 items-center">
+              <span className="text-primary font-medium text-sm">(Reference)</span>
+            </div>
         </div>
 
         <ChecklistItem
