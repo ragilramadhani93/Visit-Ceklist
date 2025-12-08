@@ -141,13 +141,26 @@ const App: React.FC = () => {
         if (!error && userProfile) {
           return userProfile as User;
         }
-        
-        if (error && error.code !== 'PGRST116') { // 'PGRST116' means 0 rows found
-          console.error(`Non-retriable error fetching user profile on attempt ${i + 1}:`, error);
-          throw error; // Fail fast on non-retriable errors
+
+        const isZeroRows = error && error.code === 'PGRST116';
+        const message = String(error?.message || '');
+        const isNetworkError = !error?.code && /Failed to fetch|NetworkError|ERR_ABORTED/i.test(message);
+
+        if (isZeroRows) {
+          // No profile yet; allow outer logic to create it
+          break;
         }
-        
-        await new Promise(res => setTimeout(res, delay * (i + 1)));
+
+        if (isNetworkError && i < retries - 1) {
+          console.warn(`Network error fetching profile (attempt ${i + 1}). Retrying...`, error);
+          await new Promise(res => setTimeout(res, delay * (i + 1)));
+          continue;
+        }
+
+        if (error) {
+          console.error(`Non-retriable error fetching user profile on attempt ${i + 1}:`, error);
+          throw error;
+        }
       }
       return null;
     };
@@ -201,16 +214,22 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
         console.error("Error setting up user session:", error);
-        const errorMessage = `Failed to set up session: ${error.message || "An unknown error occurred."}\nPlease check the database permissions or try again.`;
+        const message = String(error?.message || "An unknown error occurred.");
+        const isNetworkError = /Failed to fetch|NetworkError|ERR_ABORTED/i.test(message);
+        const errorMessage = isNetworkError
+          ? `Network issue while setting up session. Please check your connection and try again.`
+          : `Failed to set up session: ${message}\nPlease check the database permissions or try again.`;
         sessionStorage.setItem('loginError', errorMessage);
-        try {
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('sb-') && key.includes('auth-token')) {
-              localStorage.removeItem(key);
+        if (!isNetworkError) {
+          try {
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('sb-') && key.includes('auth-token')) {
+                localStorage.removeItem(key);
+              }
             }
-          }
-        } catch (_) {}
+          } catch (_) { /* noop */ }
+        }
     }
   }, []);
 
