@@ -61,8 +61,23 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
     const file = event.target.files?.[0];
     if (file) {
       try {
-        const resized = await resizeImage(file, 1600, 1600, 0.8);
-        const base64String = await blobToBase64(resized);
+        let base64String = '';
+        
+        if (item.evidenceType === 'video') {
+            // Video handling: Skip resize, check size
+            const maxSize = 50 * 1024 * 1024; // 50MB limit
+            if (file.size > maxSize) {
+                alert("Video is too large (max 50MB). Please record a shorter video.");
+                if (photoInputRef.current) photoInputRef.current.value = '';
+                return;
+            }
+            base64String = await blobToBase64(file);
+        } else {
+            // Photo handling: Resize image
+            const resized = await resizeImage(file, 1600, 1600, 0.8);
+            base64String = await blobToBase64(resized);
+        }
+
         const newPhotoEvidence = [...(item.photoEvidence || []), base64String];
         
         let updates: Partial<ChecklistItemType> = { photoEvidence: newPhotoEvidence };

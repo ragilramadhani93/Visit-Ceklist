@@ -129,7 +129,7 @@ export const generateAuditReportPDF = async (
         styles: { fontSize: 9, cellPadding: 2, valign: 'middle' },
         headStyles: { fillColor: [128, 0, 0] },
         columnStyles: {
-            4: { cellWidth: 40, minCellHeight: 35 }, // Increased width for multiple photos
+            4: { cellWidth: 60, minCellHeight: 50 }, // Increased width for larger photos
         },
         didDrawCell: (data: any) => {
             if (data.section === 'body' && data.column.index === 4) {
@@ -144,8 +144,8 @@ export const generateAuditReportPDF = async (
                      const count = item.photoEvidence?.length || 0;
                      if (count > 0) {
                          // Draw a video thumbnail placeholder (Gray box with Play icon)
-                         const thumbnailHeight = 20; 
-                         const thumbnailWidth = 30; 
+                         const thumbnailHeight = 30; 
+                         const thumbnailWidth = 45; 
                          
                          // Center the thumbnail
                          const x = data.cell.x + (data.cell.width - thumbnailWidth) / 2;
@@ -171,9 +171,9 @@ export const generateAuditReportPDF = async (
                          
                          // Draw Play Icon (White Triangle)
                          doc.setFillColor(255, 255, 255);
-                         const triX = x + (thumbnailWidth / 2) - 2;
-                         const triY = y + (thumbnailHeight / 2) - 3;
-                         doc.triangle(triX, triY, triX, triY + 6, triX + 5, triY + 3, 'F');
+                         const triX = x + (thumbnailWidth / 2) - 3;
+                         const triY = y + (thumbnailHeight / 2) - 4;
+                         doc.triangle(triX, triY, triX, triY + 8, triX + 7, triY + 4, 'F');
                          
                          const firstUrl = item.photoEvidence?.[0];
                          if (firstUrl && firstUrl.startsWith('http')) {
@@ -196,10 +196,10 @@ export const generateAuditReportPDF = async (
 
                 const imagesForRow = itemImages[data.row.index];
                 if (imagesForRow && imagesForRow.length > 0) {
-                    const maxImagesToShow = 3;
-                    const padding = 1;
+                    const maxImagesToShow = 2; // Reduced to 2 to make them larger
+                    const padding = 2;
                     const availableWidth = data.cell.width - (padding * 2);
-                    const imgSize = Math.min(20, (availableWidth - (padding * (maxImagesToShow - 1))) / maxImagesToShow);
+                    const imgSize = Math.min(45, (availableWidth - (padding * (maxImagesToShow - 1))) / maxImagesToShow);
                     
                     imagesForRow.slice(0, maxImagesToShow).forEach((imgDataUri, imgIndex) => {
                         if (imgDataUri) {

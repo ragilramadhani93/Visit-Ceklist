@@ -74,7 +74,24 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
 
   // FIX: Save the entire checklist state to sessionStorage whenever it changes.
   useEffect(() => {
-    sessionStorage.setItem(`checklistState_${checklist.id}`, JSON.stringify(currentChecklist));
+    try {
+      sessionStorage.setItem(`checklistState_${checklist.id}`, JSON.stringify(currentChecklist));
+    } catch (e) {
+      console.warn("Failed to save checklist state to sessionStorage (likely quota exceeded)", e);
+      // Fallback: Try to save state without heavy evidence data if quota is exceeded
+      try {
+        const lightweightState = {
+          ...currentChecklist,
+          items: currentChecklist.items.map(item => ({
+            ...item,
+            photoEvidence: item.photoEvidence?.map(p => p.length > 1000 ? 'skipped_too_large' : p) // Placeholder for large data
+          }))
+        };
+        sessionStorage.setItem(`checklistState_${checklist.id}`, JSON.stringify(lightweightState));
+      } catch (retryError) {
+        console.error("Even lightweight state save failed", retryError);
+      }
+    }
   }, [currentChecklist, checklist.id]);
 
   // FIX: Save the current question index to sessionStorage whenever it changes.
