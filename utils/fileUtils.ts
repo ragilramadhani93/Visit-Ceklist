@@ -16,7 +16,11 @@ export const blobToBase64 = (blob: Blob): Promise<string> => {
 };
 
 export const base64ToBlob = (base64: string, contentType: string = 'image/jpeg'): Blob => {
-    const byteCharacters = atob(base64);
+    // Clean up base64 string: remove data URL prefix if present, and remove whitespaces
+    const cleanBase64 = base64.includes(',') ? base64.split(',')[1] : base64;
+    const sanitizedBase64 = cleanBase64.replace(/\s/g, '');
+
+    const byteCharacters = atob(sanitizedBase64);
     const byteArrays = [];
     for (let offset = 0; offset < byteCharacters.length; offset += 512) {
         const slice = byteCharacters.slice(offset, offset + 512);
