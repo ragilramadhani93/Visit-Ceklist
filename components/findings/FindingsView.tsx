@@ -59,6 +59,11 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; onResolveClick: (finding
     const statusStyles = getStatusStyles(finding.status);
     const hasEvidence = !!finding.photo;
     const hasProof = !!finding.proof_of_fix;
+    const isVideoUrl = (url: string) => {
+        if (!url) return false;
+        return /^data:video\//.test(url) || /\.webm($|\?)/i.test(url) || /content-type=video/i.test(url);
+    };
+    const evidenceIsVideo = hasEvidence ? isVideoUrl(finding.photo!) : false;
 
     return (
         <Card className={`mb-4 border-l-4 ${priorityStyles.border} transition-shadow hover:shadow-lg`}>
@@ -139,9 +144,18 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; onResolveClick: (finding
                             {hasEvidence && (
                                 <div className="flex flex-col">
                                     <span className="text-xs font-bold text-gray-500 block mb-1 text-center">EVIDENCE</span>
-                                    <button onClick={() => onImageClick(finding.photo!)} className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group">
-                                        <img src={finding.photo} alt="Finding evidence" className="rounded-lg object-cover w-full h-36 md:h-full cursor-pointer transition-transform group-hover:scale-105" />
-                                    </button>
+                                    {evidenceIsVideo ? (
+                                        <video
+                                            src={finding.photo!}
+                                            controls
+                                            playsInline
+                                            className="rounded-lg object-cover w-full h-36 md:h-full bg-black"
+                                        />
+                                    ) : (
+                                        <button onClick={() => onImageClick(finding.photo!)} className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group">
+                                            <img src={finding.photo!} alt="Finding evidence" className="rounded-lg object-cover w-full h-36 md:h-full cursor-pointer transition-transform group-hover:scale-105" />
+                                        </button>
+                                    )}
                                 </div>
                             )}
                             {hasProof && (

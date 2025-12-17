@@ -73,8 +73,8 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
             }
             base64String = await blobToBase64(file);
         } else {
-            // Photo handling: Resize image
-            const resized = await resizeImage(file, 1600, 1600, 0.8);
+            // Photo handling: Resize image (optimized for APK memory)
+            const resized = await resizeImage(file, 1024, 1024, 0.7);
             base64String = await blobToBase64(resized);
         }
 
@@ -96,7 +96,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
   
   const handleCameraCapture = async (blob: Blob) => {
     try {
-      const resized = await resizeImage(blob, 1600, 1600, 0.8);
+      const resized = await resizeImage(blob, 1024, 1024, 0.7);
       const base64String = await blobToBase64(resized);
       const newPhotoEvidence = [...(item.photoEvidence || []), base64String];
       let updates: Partial<ChecklistItemType> = { photoEvidence: newPhotoEvidence };
