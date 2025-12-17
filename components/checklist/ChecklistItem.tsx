@@ -7,6 +7,7 @@ import VideoRecorder from './VideoRecorder';
 import { Capacitor } from '@capacitor/core';
 import { Camera as NativeCam, CameraResultType, CameraSource } from '@capacitor/camera';
 import AIPhotoAnalysis from './AIPhotoAnalysis';
+import { uploadPublic } from '../../services/supabaseClient';
 
 interface ChecklistItemProps {
   item: ChecklistItemType;
@@ -40,8 +41,8 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
 
   const handleVideoCapture = async (blob: Blob) => {
     try {
-        const base64String = await blobToBase64(blob);
-        const newEvidence = [...(item.photoEvidence || []), base64String];
+        const url = await uploadPublic('field-ops-photos', blob, `evidence/${item.id}_${Date.now()}.webm`);
+        const newEvidence = [...(item.photoEvidence || []), url];
         let updates: Partial<ChecklistItemType> = { photoEvidence: newEvidence };
         
         if (item.type === 'photo') {
@@ -71,22 +72,28 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
                 if (photoInputRef.current) photoInputRef.current.value = '';
                 return;
             }
-            base64String = await blobToBase64(file);
+            const url = await uploadPublic('field-ops-photos', file, `evidence/${item.id}_${Date.now()}.webm`);
+            const newEvidence = [...(item.photoEvidence || []), url];
+            let updates: Partial<ChecklistItemType> = { photoEvidence: newEvidence };
+            if (item.type === 'photo') {
+              updates.value = newEvidence;
+              updates.aiAnalysisStatus = 'idle';
+              updates.aiAnalysisResult = '';
+            }
+            onChange(item.id, updates);
         } else {
             // Photo handling: Resize image (optimized for APK memory)
             const resized = await resizeImage(file, 1024, 1024, 0.7);
-            base64String = await blobToBase64(resized);
+            const url = await uploadPublic('field-ops-photos', resized, `evidence/${item.id}_${Date.now()}.jpg`);
+            const newEvidence = [...(item.photoEvidence || []), url];
+            let updates: Partial<ChecklistItemType> = { photoEvidence: newEvidence };
+            if (item.type === 'photo') {
+              updates.value = newEvidence; 
+              updates.aiAnalysisStatus = 'idle';
+              updates.aiAnalysisResult = '';
+            }
+            onChange(item.id, updates);
         }
-
-        const newPhotoEvidence = [...(item.photoEvidence || []), base64String];
-        
-        let updates: Partial<ChecklistItemType> = { photoEvidence: newPhotoEvidence };
-        if (item.type === 'photo') {
-          updates.value = newPhotoEvidence; // Keep value in sync for photo type
-          updates.aiAnalysisStatus = 'idle';
-          updates.aiAnalysisResult = '';
-        }
-        onChange(item.id, updates);
 
       } catch (error) {
         console.error("Error converting file to base64", error);
@@ -97,8 +104,8 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
   const handleCameraCapture = async (blob: Blob) => {
     try {
       const resized = await resizeImage(blob, 1024, 1024, 0.7);
-      const base64String = await blobToBase64(resized);
-      const newPhotoEvidence = [...(item.photoEvidence || []), base64String];
+      const url = await uploadPublic('field-ops-photos', resized, `evidence/${item.id}_${Date.now()}.jpg`);
+      const newPhotoEvidence = [...(item.photoEvidence || []), url];
       let updates: Partial<ChecklistItemType> = { photoEvidence: newPhotoEvidence };
       if (item.type === 'photo') {
         updates.value = newPhotoEvidence;
@@ -122,9 +129,9 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
       const base64String = photo.base64String || '';
       if (!base64String) return;
       const originalBlob = base64ToBlob(base64String, 'image/jpeg');
-      const resizedBlob = await resizeImage(originalBlob, 1600, 1600, 0.8);
-      const compressedBase64 = await blobToBase64(resizedBlob);
-      const newPhotoEvidence = [...(item.photoEvidence || []), compressedBase64];
+      const resizedBlob = await resizeImage(originalBlob, 1024, 1024, 0.7);
+      const url = await uploadPublic('field-ops-photos', resizedBlob, `evidence/${item.id}_${Date.now()}.jpg`);
+      const newPhotoEvidence = [...(item.photoEvidence || []), url];
       let updates: Partial<ChecklistItemType> = { photoEvidence: newPhotoEvidence };
       if (item.type === 'photo') {
         updates.value = newPhotoEvidence;
