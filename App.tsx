@@ -20,8 +20,7 @@ import { generateAuditReportPDF } from './services/pdfService';
 import ProgressOverlay from './components/shared/ProgressOverlay';
 import type { Session } from '@supabase/supabase-js';
 
-// IMPORTANT: Upload your logo to Supabase storage and replace this URL. See README for instructions.
-const LOGO_URL = "https://xkzmddgcwcqvhicdqrpa.supabase.co/storage/v1/object/public/field-ops-photos/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1%20(1).jpg";
+const LOGO_URL = (import.meta as any).env?.VITE_LOGO_URL || "https://xkzmddgcwcqvhicdqrpa.supabase.co/storage/v1/object/public/field-ops-photos/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1%20(1).jpg";
 
 
 const LoginPage: React.FC = () => {
@@ -29,6 +28,9 @@ const LoginPage: React.FC = () => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [logoSrc, setLogoSrc] = useState<string>(LOGO_URL);
+    const [sanitizedTried, setSanitizedTried] = useState(false);
+    const sanitizeUrl = (url: string) => url.replace(/\(/g, '%28').replace(/\)/g, '%29');
 
     useEffect(() => {
         const loginError = sessionStorage.getItem('loginError');
@@ -55,7 +57,25 @@ const LoginPage: React.FC = () => {
     return (
         <div className="flex items-center justify-center min-h-screen bg-base-200">
             <Card className="w-full max-w-sm text-center shadow-2xl p-8">
-                <img src={LOGO_URL} alt="Kapal Api Coffee Corner Logo" className="mx-auto w-48 mb-6" />
+                {logoSrc ? (
+                  <img
+                    src={logoSrc}
+                    alt="Kapal Api Coffee Corner Logo"
+                    className="mx-auto w-48 mb-6"
+                    onError={() => {
+                      if (!sanitizedTried) {
+                        setSanitizedTried(true);
+                        setLogoSrc(sanitizeUrl(logoSrc));
+                      } else {
+                        setLogoSrc('');
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="mx-auto w-48 h-16 mb-6 flex items-center justify-center text-neutral font-semibold">
+                    Kapal Api Coffee Corner
+                  </div>
+                )}
                 <h1 className="text-2xl font-bold text-neutral mb-2">Welcome Back</h1>
                 <p className="text-gray-600 mb-6">Please sign in to continue</p>
                 <form onSubmit={handleLogin} className="space-y-4 text-left">
