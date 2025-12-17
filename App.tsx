@@ -132,7 +132,16 @@ const App: React.FC = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [view, setView] = useState<View>('auditor_dashboard');
+  const [view, setView] = useState<View>(() => {
+    try {
+      const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
+      if (activeChecklistId) return 'checklists';
+      const lastViewRaw = localStorage.getItem('lastView');
+      const validViews = new Set(['checklists','findings','reports','admin_dashboard','auditor_dashboard','user_management','templates','outlet_management','assignments']);
+      if (lastViewRaw && validViews.has(lastViewRaw)) return lastViewRaw as View;
+    } catch (_) { }
+    return 'auditor_dashboard';
+  });
   const [selectedChecklist, setSelectedChecklist] = useState<Checklist | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [submissionProgress, setSubmissionProgress] = useState<{ message: string; progress: number } | null>(null);
@@ -372,6 +381,25 @@ const App: React.FC = () => {
         fetchData();
     }
   }, [currentUser, fetchData]);
+  
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
+        if (activeChecklistId) {
+          const found = checklists.find(c => c.id === activeChecklistId);
+          if (found) {
+            setSelectedChecklist(found);
+            safeSetView('checklists');
+          }
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [checklists, safeSetView]);
   
   // FIX: This effect handles the "reload after camera" issue.
   // If the app reloads and we have an active checklist ID in sessionStorage, this effect

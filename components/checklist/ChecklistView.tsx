@@ -171,12 +171,17 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
     return true;
   }, [currentItem]);
 
-
   const goToNext = () => {
     if (currentItemIndex < totalItems - 1) {
       setCurrentItemIndex(prev => prev + 1);
     } else {
       setFlowState('checkout');
+    }
+  };
+  
+  const goToPrev = () => {
+    if (currentItemIndex > 0) {
+      setCurrentItemIndex(prev => prev - 1);
     }
   };
   
@@ -308,13 +313,23 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
       </main>
 
       <footer className="p-4 bg-gray-800 sticky bottom-0">
-          <Button 
-            onClick={goToNext} 
-            className="w-full !py-3 !text-lg !font-bold transition-transform transform hover:scale-105"
-            disabled={!isCurrentItemValid}
-          >
-            {currentItemIndex === totalItems - 1 ? 'PROCEED TO CHECKOUT' : 'NEXT QUESTION'}
-          </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Button 
+              onClick={goToPrev} 
+              variant="secondary"
+              className="w-full !py-3 !text-lg !font-bold"
+              disabled={currentItemIndex === 0}
+            >
+              PREVIOUS
+            </Button>
+            <Button 
+              onClick={goToNext} 
+              className="w-full !py-3 !text-lg !font-bold transition-transform transform hover:scale-105"
+              disabled={!isCurrentItemValid}
+            >
+              {currentItemIndex === totalItems - 1 ? 'PROCEED TO CHECKOUT' : 'NEXT'}
+            </Button>
+          </div>
       </footer>
     </div>
   );
