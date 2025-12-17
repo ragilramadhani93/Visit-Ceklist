@@ -682,9 +682,16 @@ const App: React.FC = () => {
       const checklistForDb = JSON.parse(JSON.stringify(completedChecklist));
       checklistForDb.auditor_signature = signatureUrl;
       checklistForDb.auditor_selfie = selfieUrl;
+      checklistForDb.items = (Array.isArray(checklistForDb.items) ? checklistForDb.items : [])
+        .filter(Boolean)
+        .map((it: any) => ({
+          ...it,
+          evidenceType: it?.evidenceType || 'photo',
+          photoEvidence: Array.isArray(it?.photoEvidence) ? it.photoEvidence : [],
+        }));
 
       // Upload all photo evidence
-      for (const item of checklistForDb.items) {
+      for (const item of checklistForDb.items as ChecklistItem[]) {
           if (item.photoEvidence && item.photoEvidence.length > 0) {
               const uploadedPhotoUrls: string[] = [];
               for (const photo of item.photoEvidence) {

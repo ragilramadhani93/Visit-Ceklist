@@ -41,6 +41,7 @@ export const generateAuditReportPDF = async (
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.getHeight();
     let yPos = 20;
+    const itemsArr = Array.isArray(checklist.items) ? checklist.items.filter(Boolean) : [];
 
     // --- Header ---
     const logoDataURI = await getImageAsDataURI(logoUrl);
@@ -86,7 +87,8 @@ export const generateAuditReportPDF = async (
 
     // Pre-fetch all item images to be embedded in the table
     const itemImages = await Promise.all(
-      checklist.items.map(async item => {
+      itemsArr.map(async item => {
+        if (!item) return [];
         if (item.evidenceType === 'video') {
             if (imageOverrides && imageOverrides[item.id]) {
                 const uri = await getImageAsDataURI(imageOverrides[item.id]);
@@ -98,7 +100,8 @@ export const generateAuditReportPDF = async (
       })
     );
 
-    const tableData = checklist.items.map((item, index) => {
+    const tableData = itemsArr.map((item, index) => {
+        if (!item) return [index + 1, '', 'N/A', '', ''];
         let value = item.value;
         if (item.type === 'yes-no') {
             if (value === 'yes') value = 'Yes';
@@ -138,9 +141,9 @@ export const generateAuditReportPDF = async (
                     doc.setPage(data.pageNumber);
                 }
 
-                const item = checklist.items[data.row.index];
+                const item = itemsArr[data.row.index];
                 
-                if (item.evidenceType === 'video') {
+                if (item && item.evidenceType === 'video') {
                      const count = item.photoEvidence?.length || 0;
                      if (count > 0) {
                          // Draw a video thumbnail placeholder (Gray box with Play icon)
@@ -207,7 +210,7 @@ export const generateAuditReportPDF = async (
                             const y = data.cell.y + (data.cell.height - imgSize) / 2;
                             try {
                                 doc.addImage(imgDataUri, 'JPEG', x, y, imgSize, imgSize);
-                                const photoUrl = item.photoEvidence?.[imgIndex];
+                                const photoUrl = (itemsArr[data.row.index]?.photoEvidence || [])[imgIndex];
                                 if (photoUrl && photoUrl.startsWith('http')) {
                                     doc.link(x, y, imgSize, imgSize, { url: photoUrl });
                                 }
