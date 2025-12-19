@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Video, Square, Play, RotateCcw, Check, AlertCircle, RefreshCw } from 'lucide-react';
+import { X, Video, Square, Play, RotateCcw, Check, AlertCircle, RefreshCw, Zap, ZapOff, ZoomIn, ZoomOut } from 'lucide-react';
 
 interface VideoRecorderProps {
   onCapture: (blob: Blob) => void;
@@ -16,6 +16,13 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [permissionError, setPermissionError] = useState(false);
+
+  // Camera capabilities state
+  const [supportsFlash, setSupportsFlash] = useState(false);
+  const [flashOn, setFlashOn] = useState(false);
+  const [supportsZoom, setSupportsZoom] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [zoomRange, setZoomRange] = useState({ min: 1, max: 1 });
 
   useEffect(() => {
     startCamera();
@@ -46,16 +53,74 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
     return () => clearInterval(interval);
   }, [isRecording, timeLeft]);
 
+  const checkCapabilities = (mediaStream: MediaStream) => {
+    const track = mediaStream.getVideoTracks()[0];
+    if (!track) return;
+    
+    // Use 'any' to bypass TS check if getCapabilities is not in definition
+    const capabilities = (track as any).getCapabilities ? (track as any).getCapabilities() : {};
+    
+    if ('torch' in capabilities) {
+      setSupportsFlash(true);
+    } else {
+      setSupportsFlash(false);
+    }
+
+    if ('zoom' in capabilities) {
+      setSupportsZoom(true);
+      setZoomRange({ 
+        min: capabilities.zoom.min || 1, 
+        max: capabilities.zoom.max || 10 
+      });
+      setZoomLevel(capabilities.zoom.min || 1);
+    } else {
+      setSupportsZoom(false);
+    }
+  };
+
+  const toggleFlash = async () => {
+    if (!stream) return;
+    const track = stream.getVideoTracks()[0];
+    if (!track) return;
+
+    try {
+      await track.applyConstraints({
+        advanced: [{ torch: !flashOn } as any]
+      });
+      setFlashOn(!flashOn);
+    } catch (err) {
+      console.error("Flash toggle failed", err);
+    }
+  };
+
+  const handleZoom = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newZoom = parseFloat(e.target.value);
+    setZoomLevel(newZoom);
+    
+    if (!stream) return;
+    const track = stream.getVideoTracks()[0];
+    if (!track) return;
+
+    try {
+      await track.applyConstraints({
+        advanced: [{ zoom: newZoom } as any]
+      });
+    } catch (err) {
+      console.error("Zoom failed", err);
+    }
+  };
+
   const startCamera = async () => {
     setPermissionError(false);
     try {
       // 1. Try environment camera with audio
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: { ideal: 'environment' } }, 
+          video: { facingMode: { ideal: 'environment' }, zoom: true } as any, 
           audio: true 
         });
         setStream(mediaStream);
+        checkCapabilities(mediaStream);
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
         }
@@ -67,6 +132,7 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
           audio: true 
         });
         setStream(fallbackStream);
+        checkCapabilities(fallbackStream);
         if (videoRef.current) {
           videoRef.current.srcObject = fallbackStream;
         }
@@ -80,6 +146,7 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
           audio: false 
         });
         setStream(videoOnlyStream);
+        checkCapabilities(videoOnlyStream);
         if (videoRef.current) {
           videoRef.current.srcObject = videoOnlyStream;
         }
@@ -181,6 +248,34 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
               playsInline 
               className="w-full h-full object-contain"
             />
+            
+            {/* Flash & Zoom Controls */}
+            <div className="absolute top-4 right-4 flex flex-col gap-4 items-center z-20">
+              {supportsFlash && (
+                <button onClick={toggleFlash} className="bg-black/50 p-3 rounded-full text-white backdrop-blur-sm">
+                  {flashOn ? <Zap size={24} className="fill-yellow-400 text-yellow-400" /> : <ZapOff size={24} />}
+                </button>
+              )}
+              
+              {supportsZoom && (
+                <div className="bg-black/50 p-2 rounded-full text-white backdrop-blur-sm flex flex-col items-center gap-2">
+                  <ZoomIn size={20} />
+                  <div className="h-32 flex items-center justify-center">
+                    <input 
+                      type="range" 
+                      min={zoomRange.min} 
+                      max={zoomRange.max} 
+                      step="0.1" 
+                      value={zoomLevel} 
+                      onChange={handleZoom}
+                      className="w-32 h-2 bg-gray-400 rounded-lg appearance-none cursor-pointer origin-center -rotate-90"
+                    />
+                  </div>
+                  <ZoomOut size={20} />
+                </div>
+              )}
+            </div>
+
             {/* Timer Overlay */}
             {isRecording && (
               <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-1 rounded-full text-lg font-bold animate-pulse">

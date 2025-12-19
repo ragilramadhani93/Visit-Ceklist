@@ -123,24 +123,54 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
     try {
       const photo = await NativeCam.getPhoto({
         source: CameraSource.Camera,
-        resultType: CameraResultType.Base64,
+        resultType: CameraResultType.Uri,
         quality: 80,
+        saveToGallery: false,
+        correctOrientation: true 
       });
-      const base64String = photo.base64String || '';
-      if (!base64String) return;
-      const originalBlob = base64ToBlob(base64String, 'image/jpeg');
-      const resizedBlob = await resizeImage(originalBlob, 1024, 1024, 0.7);
-      const url = await uploadPublic('field-ops-photos', resizedBlob, `evidence/${item.id}_${Date.now()}.jpg`);
-      const newPhotoEvidence = [...(item.photoEvidence || []), url];
-      let updates: Partial<ChecklistItemType> = { photoEvidence: newPhotoEvidence };
-      if (item.type === 'photo') {
-        updates.value = newPhotoEvidence;
-        updates.aiAnalysisStatus = 'idle';
-        updates.aiAnalysisResult = '';
+      
+      const webPath = photo.webPath;
+
+      if (!webPath) {
+        alert("Error: Camera did not return a valid image path.");
+        return;
       }
-      onChange(item.id, updates);
-    } catch (e) {
-      console.error(e);
+
+      // Show processing indicator (could be improved with a proper UI spinner)
+      // For now, we rely on the async nature.
+      
+      try {
+        const response = await fetch(webPath);
+        const originalBlob = await response.blob();
+        
+        const resizedBlob = await resizeImage(originalBlob, 1024, 1024, 0.7);
+        const url = await uploadPublic('field-ops-photos', resizedBlob, `evidence/${item.id}_${Date.now()}.jpg`);
+        
+        if (!url) {
+             throw new Error("Upload failed (no URL returned)");
+        }
+
+        const newPhotoEvidence = [...(item.photoEvidence || []), url];
+        let updates: Partial<ChecklistItemType> = { photoEvidence: newPhotoEvidence };
+        
+        if (item.type === 'photo') {
+            updates.value = newPhotoEvidence;
+            updates.aiAnalysisStatus = 'idle';
+            updates.aiAnalysisResult = '';
+        }
+        
+        onChange(item.id, updates);
+      } catch (innerError: any) {
+          alert(`Failed to process/upload photo: ${innerError.message || innerError}`);
+          console.error("Inner camera process error:", innerError);
+      }
+
+    } catch (e: any) {
+      // Ignore "User cancelled photos app" error
+      if (!e.message?.includes('cancelled')) {
+          alert(`Camera Error: ${e.message || e}`);
+          console.error("Native camera error:", e);
+      }
     }
   };
   
@@ -310,7 +340,11 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
             />
           )}
           {cameraOpen && (
-            <SelfieCapture onCancel={() => setCameraOpen(false)} onCapture={handleCameraCapture} />
+            <SelfieCapture 
+              onCancel={() => setCameraOpen(false)} 
+              onCapture={handleCameraCapture} 
+              initialFacingMode="environment"
+            />
           )}
           {videoRecorderOpen && (
               <VideoRecorder onCancel={() => setVideoRecorderOpen(false)} onCapture={handleVideoCapture} />

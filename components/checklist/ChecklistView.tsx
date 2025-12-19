@@ -58,17 +58,18 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
         const photo = await NativeCam.getPhoto({
           source: CameraSource.Camera,
           resultType: CameraResultType.Base64,
-          quality: 80,
+          quality: 60, // Lower quality for selfie to reduce size
+          width: 800, // Resize directly in native
+          correctOrientation: true
         });
         const base64String = photo.base64String || '';
         if (!base64String) return;
-        // optionally resize for consistency
         setSelfie(base64String);
       } else {
         setCameraOpen(true);
       }
     } catch (e) {
-      console.error(e);
+      console.error("Selfie camera error:", e);
     }
   };
 
@@ -145,36 +146,48 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
   const totalItems = currentChecklist.items.length;
   const completionPercentage = Math.round(((currentItemIndex) / totalItems) * 100);
 
-  const isCurrentItemValid = useMemo(() => {
-    if (!currentItem) return false;
-
+  const validateItem = (item: ChecklistItemType) => {
     // 1. Mandatory Question: Check if a value is present.
-    if (currentItem.required && (currentItem.value === null || currentItem.value === undefined || String(currentItem.value).trim() === '')) {
+    if (item.required && (item.value === null || item.value === undefined || String(item.value).trim() === '')) {
       return false;
     }
 
     // 2. Mandatory Note: Check if the note is not empty.
-    if (currentItem.requireNote && (!currentItem.note || currentItem.note.trim() === '')) {
+    if (item.requireNote && (!item.note || item.note.trim() === '')) {
       return false;
     }
 
     // 3. Minimum Photos: Check if enough photos have been provided.
-    if (currentItem.minPhotos && (!currentItem.photoEvidence || currentItem.photoEvidence.length < currentItem.minPhotos)) {
+    if (item.minPhotos && (!item.photoEvidence || item.photoEvidence.length < item.minPhotos)) {
       return false;
     }
     
     // For type 'photo', ensure at least one photo is uploaded if it's a required question.
-    if (currentItem.type === 'photo' && currentItem.required && (!currentItem.photoEvidence || currentItem.photoEvidence.length === 0)) {
+    if (item.type === 'photo' && item.required && (!item.photoEvidence || item.photoEvidence.length === 0)) {
         return false;
     }
 
     return true;
+  };
+
+  const isCurrentItemValid = useMemo(() => {
+    if (!currentItem) return false;
+    return validateItem(currentItem);
   }, [currentItem]);
 
   const goToNext = () => {
     if (currentItemIndex < totalItems - 1) {
       setCurrentItemIndex(prev => prev + 1);
     } else {
+      // Check for any incomplete mandatory items before proceeding to checkout
+      const firstInvalidIndex = currentChecklist.items.findIndex(item => !validateItem(item));
+      
+      if (firstInvalidIndex !== -1) {
+        alert(`Please complete question ${firstInvalidIndex + 1} before checking out.`);
+        setCurrentItemIndex(firstInvalidIndex);
+        return;
+      }
+
       setFlowState('checkout');
     }
   };
@@ -207,7 +220,7 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
 
   const renderHeader = (title: string) => (
       <header className="bg-primary text-white p-4 flex items-center justify-between sticky top-0 z-10 shadow-md">
-        <button onClick={onBack} className="hover:bg-primary-focus p-2 rounded-full transition-colors"><ArrowLeft size={24} /></button>
+        <div className="w-8"></div> {/* Spacer to replace back button */}
         <h1 className="text-xl font-bold uppercase">{title}</h1>
         <button onClick={onLogout} className="hover:bg-primary-focus p-2 rounded-full transition-colors" aria-label="Logout">
             <LogOut size={24} />
@@ -325,7 +338,6 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
             <Button 
               onClick={goToNext} 
               className="w-full !py-3 !text-lg !font-bold transition-transform transform hover:scale-105"
-              disabled={!isCurrentItemValid}
             >
               {currentItemIndex === totalItems - 1 ? 'PROCEED TO CHECKOUT' : 'NEXT'}
             </Button>
