@@ -855,6 +855,23 @@ const App: React.FC = () => {
 
   
 
+  const handleAssignTask = async (taskId: string, assigneeId: string | null) => {
+    const { data, error } = await (supabase.from('tasks') as any)
+      .update({ assigned_to: assigneeId })
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (error) {
+      alert(`Error assigning task: ${error.message}`);
+      throw error;
+    }
+
+    if (data) {
+      setTasks(prev => prev.map(t => t.id === taskId ? data as Task : t));
+    }
+  };
+
   if (isAuthLoading) {
     return <LoadingSpinner message="Checking authentication..." />;
   }

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Task, Checklist, User, TaskPriority } from '../../types';
+import { Task, Checklist, User, TaskPriority, Role } from '../../types';
 import Card from '../shared/Card';
 import Avatar from '../shared/Avatar';
 import { Flag, MapPin, Calendar, HelpCircle, FileText, CheckSquare, Wrench, MessageSquare, Download } from 'lucide-react';
@@ -21,6 +21,7 @@ interface FindingsViewProps {
   checklists: Checklist[];
   users: User[];
   onResolveTask: (taskId: string, resolutionData: { photo: string; comment?: string }) => Promise<void>;
+  onAssignTask: (taskId: string, assigneeId: string | null) => Promise<void>;
 }
 
 const getPriorityStyles = (priority: TaskPriority | null) => {
@@ -54,11 +55,12 @@ const getResolvedDate = (proofUrl?: string | null): string | null => {
   }
   return null;
 };
-const FindingCard: React.FC<{ finding: EnrichedFinding; onResolveClick: (finding: EnrichedFinding) => void; onImageClick: (url: string) => void; }> = ({ finding, onResolveClick, onImageClick }) => {
+const FindingCard: React.FC<{ finding: EnrichedFinding; users: User[]; onResolveClick: (finding: EnrichedFinding) => void; onImageClick: (url: string) => void; onAssignTask: (taskId: string, assigneeId: string | null) => Promise<void>; }> = ({ finding, users, onResolveClick, onImageClick, onAssignTask }) => {
     const priorityStyles = getPriorityStyles(finding.priority);
     const statusStyles = getStatusStyles(finding.status);
     const hasEvidence = !!finding.photo;
     const hasProof = !!finding.proof_of_fix;
+    const auditors = users.filter(u => u.role === Role.Auditor);
     const isVideoUrl = (url: string) => {
         if (!url) return false;
         return /^data:video\//.test(url) || /\.webm($|\?)/i.test(url) || /content-type=video/i.test(url);
@@ -114,15 +116,19 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; onResolveClick: (finding
                                 </div>
                             </div>
                         )}
-                        {finding.assignee && (
-                            <div className="text-xs">
-                                <span className="font-bold text-gray-500 block">ASSIGNED TO</span>
-                                <div className="flex items-center mt-1">
-                                    <Avatar user={finding.assignee} className="w-6 h-6 mr-2"/>
-                                    <span>{finding.assignee.name}</span>
-                                </div>
-                            </div>
-                        )}
+                        <div className="text-xs min-w-[150px]">
+                            <span className="font-bold text-gray-500 block mb-1">ASSIGNED TO</span>
+                            <select
+                                value={finding.assigned_to || ''}
+                                onChange={(e) => onAssignTask(finding.id, e.target.value || null)}
+                                className="block w-full pl-2 pr-8 py-1 text-sm border-gray-300 focus:outline-none focus:ring-primary focus:border-primary rounded-md bg-white"
+                            >
+                                <option value="">Unassigned</option>
+                                {auditors.map(user => (
+                                    <option key={user.id} value={user.id}>{user.name || user.email}</option>
+                                ))}
+                            </select>
+                        </div>
                         {finding.status !== 'resolved' && (
                             <div className="flex-grow flex items-end justify-end">
                                 <Button onClick={() => onResolveClick(finding)} variant='primary' className="!text-sm !py-1.5">
@@ -175,7 +181,7 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; onResolveClick: (finding
 };
 
 
-const FindingsView: React.FC<FindingsViewProps> = ({ tasks, checklists, users, onResolveTask }) => {
+const FindingsView: React.FC<FindingsViewProps> = ({ tasks, checklists, users, onResolveTask, onAssignTask }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
@@ -311,7 +317,7 @@ const FindingsView: React.FC<FindingsViewProps> = ({ tasks, checklists, users, o
         <div>
             {filteredFindings.length > 0 ? (
                 filteredFindings.map(finding => (
-                    <FindingCard key={finding.id} finding={finding} onResolveClick={handleOpenResolveModal} onImageClick={handleOpenImageModal} />
+                    <FindingCard key={finding.id} finding={finding} users={users} onResolveClick={handleOpenResolveModal} onImageClick={handleOpenImageModal} onAssignTask={onAssignTask} />
                 ))
             ) : (
                 <Card className="text-center py-12">
