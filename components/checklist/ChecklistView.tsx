@@ -147,6 +147,14 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
   const completionPercentage = Math.round(((currentItemIndex) / totalItems) * 100);
 
   const validateItem = (item: ChecklistItemType) => {
+    // Special handling for 'photo' type: validation relies on photoEvidence, not the 'value' field.
+    if (item.type === 'photo') {
+        if (item.required && (!item.photoEvidence || item.photoEvidence.length === 0)) {
+            return false;
+        }
+        return true;
+    }
+
     // 1. Mandatory Question: Check if a value is present.
     if (item.required && (item.value === null || item.value === undefined || String(item.value).trim() === '')) {
       return false;
@@ -160,11 +168,6 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
     // 3. Minimum Photos: Check if enough photos have been provided.
     if (item.minPhotos && (!item.photoEvidence || item.photoEvidence.length < item.minPhotos)) {
       return false;
-    }
-    
-    // For type 'photo', ensure at least one photo is uploaded if it's a required question.
-    if (item.type === 'photo' && item.required && (!item.photoEvidence || item.photoEvidence.length === 0)) {
-        return false;
     }
 
     return true;
@@ -220,8 +223,10 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
 
   const renderHeader = (title: string) => (
       <header className="bg-primary text-white p-4 flex items-center justify-between sticky top-0 z-10 shadow-md">
-        <div className="w-8"></div> {/* Spacer to replace back button */}
-        <h1 className="text-xl font-bold uppercase">{title}</h1>
+        <button onClick={onBack} className="hover:bg-primary-focus p-2 rounded-full transition-colors" aria-label="Back to Dashboard">
+            <ArrowLeft size={24} />
+        </button>
+        <h1 className="text-xl font-bold uppercase flex-1 text-center">{title}</h1>
         <button onClick={onLogout} className="hover:bg-primary-focus p-2 rounded-full transition-colors" aria-label="Logout">
             <LogOut size={24} />
         </button>

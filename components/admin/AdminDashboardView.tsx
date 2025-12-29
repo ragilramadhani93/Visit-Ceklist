@@ -63,6 +63,11 @@ const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ setView, users,
           <p className="text-gray-600">Create and customize checklist templates for different types of audits and inspections.</p>
           <Button onClick={() => setView('templates')} className="mt-4">Create Template</Button>
         </Card>
+        <Card>
+          <h3 className="text-lg font-bold text-neutral mb-4">Email Reporting</h3>
+          <p className="text-gray-600">Configure who receives automatic email reports when audits are completed.</p>
+          <Button onClick={() => setView('email_config')} className="mt-4">Configure Emails</Button>
+        </Card>
         <Card className="md:col-span-2 lg:col-span-2">
           <h3 className="text-lg font-bold text-neutral mb-4">Global Settings</h3>
           <p className="text-gray-600">Configure application-wide settings, manage integrations, and set reporting preferences.</p>

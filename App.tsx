@@ -11,6 +11,7 @@ import TemplateEditorView from './components/templates/TemplateEditorView';
 import OutletManagementView from './components/admin/OutletManagementView';
 import AssignmentView from './components/admin/AssignmentView';
 import ReportsView from './components/reports/ReportsView';
+import EmailConfigView from './components/admin/EmailConfigView';
 import { LogIn, LoaderCircle } from 'lucide-react';
 import Card from './components/shared/Card';
 import Button from './components/shared/Button';
@@ -147,8 +148,10 @@ const App: React.FC = () => {
   const [submissionProgress, setSubmissionProgress] = useState<{ message: string; progress: number } | null>(null);
 
   const safeSetView = useCallback((next: View) => {
+    localStorage.setItem('lastView', next);
+    // Security check: if user is Auditor, prevent access to admin-only views
     if (currentUser?.role === Role.Auditor) {
-      const adminOnlyViews = new Set(['admin_dashboard','assignments','findings','reports','user_management','templates','outlet_management']);
+      const adminOnlyViews = new Set(['admin_dashboard','assignments','findings','user_management','templates','outlet_management','email_config']);
       if (adminOnlyViews.has(next)) {
         setView('auditor_dashboard');
         return;
@@ -770,7 +773,50 @@ const App: React.FC = () => {
       }
       
       setChecklists(prev => prev.map(c => c.id === id ? data as Checklist : c));
-      alert("Checklist submitted successfully!");
+      
+      // Trigger Email Notification (Non-blocking but feedback aware)
+      let emailStatusMessage = '';
+      if (reportUrl) {
+          updateProgress("Sending report email...");
+          
+          // Fetch additional recipients
+          const { data: recipients } = await (supabase.from('email_recipients') as any).select('email');
+          const recipientEmails = recipients ? recipients.map((r: any) => r.email) : [];
+          
+          // Always include the current user (auditor)
+          if (currentUser?.email && !recipientEmails.includes(currentUser.email)) {
+             recipientEmails.push(currentUser.email);
+          }
+
+          if (recipientEmails.length > 0) {
+            try {
+                const { error: funcError } = await supabase.functions.invoke('send-audit-report', {
+                    body: {
+                        email: recipientEmails, // Now sending an array
+                        auditorName: currentUser?.name || 'Auditor',
+                        location: checklistForDb.location,
+                        date: dateStr,
+                        reportUrl: reportUrl
+                    }
+                });
+                
+                if (funcError) {
+                    console.error("Failed to send email:", funcError);
+                    emailStatusMessage = `\n(Warning: Email notification failed: ${funcError.message || funcError})`;
+                } else {
+                    console.log("Email sent successfully");
+                    emailStatusMessage = `\n(Email notification sent to ${recipientEmails.length} recipient(s))`;
+                }
+            } catch (err: any) {
+                console.error("Email function error:", err);
+                emailStatusMessage = `\n(Warning: Email notification error: ${err.message || err})`;
+            }
+          } else {
+              emailStatusMessage = `\n(No email recipients found)`;
+          }
+      }
+
+      alert(`Checklist submitted successfully!${emailStatusMessage}`);
       
       sessionStorage.removeItem(`checklistState_${completedChecklist.id}`);
       sessionStorage.removeItem(`checklistIndex_${completedChecklist.id}`);
@@ -887,7 +933,7 @@ const App: React.FC = () => {
   const renderView = () => {
     switch (view) {
       case 'admin_dashboard':
-        return <AdminDashboardView setView={setView} users={users} outlets={outlets} templates={checklistTemplates} checklists={checklists} />;
+        return <AdminDashboardView setView={safeSetView} users={users} outlets={outlets} templates={checklistTemplates} checklists={checklists} />;
       case 'auditor_dashboard':
         return <AuditorDashboardView user={currentUser} onSelectChecklist={handleSelectChecklist} checklists={checklists} tasks={tasks} users={users} onResolveTask={handleResolveTask} />;
       case 'checklists':
@@ -902,9 +948,14 @@ const App: React.FC = () => {
 
   
       case 'findings':
-        return <FindingsView tasks={tasks} checklists={checklists} users={users} onResolveTask={handleResolveTask} />;
+        return <FindingsView tasks={tasks} checklists={checklists} users={users} onResolveTask={handleResolveTask} onAssignTask={handleAssignTask} />;
       case 'reports':
-        return <ReportsView checklists={checklists} users={users} />;
+        const reportChecklists = currentUser?.role === Role.Auditor
+          ? checklists.filter(c => c.assigned_to === currentUser.id)
+          : checklists;
+        return <ReportsView checklists={reportChecklists} users={users} />;
+      case 'email_config':
+        return <EmailConfigView />;
       case 'user_management':
         return <UserManagementView users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />;
       case 'templates':
