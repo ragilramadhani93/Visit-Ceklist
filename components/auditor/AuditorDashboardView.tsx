@@ -126,11 +126,16 @@ const AuditorDashboardView: React.FC<AuditorDashboardViewProps> = ({ user, onSel
                             </tr>
                         </thead>
                         <tbody>
-                            {checklists.filter(c => c.status !== 'completed' && c.assigned_to === user.id).length > 0 ? checklists.filter(c => c.status !== 'completed' && c.assigned_to === user.id).map(checklist => (
+                            {checklists.filter(c => c.status !== 'completed' && c.assigned_to === user.id).length > 0 ? checklists.filter(c => c.status !== 'completed' && c.assigned_to === user.id).map(checklist => {
+                                const isOverdue = checklist.due_date && checklist.due_date < new Date().toISOString().split('T')[0];
+                                return (
                                 <tr key={checklist.id} className="border-b hover:bg-base-200 cursor-pointer" onClick={() => onSelectChecklist(checklist)}>
                                     <td className="p-2 font-medium">{checklist.title}</td>
                                     <td className="p-2">{checklist.location}</td>
-                                    <td className="p-2">{checklist.due_date}</td>
+                                    <td className="p-2">
+                                        {checklist.due_date}
+                                        {isOverdue && <span className="ml-2 text-error font-bold text-xs">(Overdue)</span>}
+                                    </td>
                                     <td className="p-2">
                                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                                             checklist.status === 'pending' ? 'bg-yellow-200 text-yellow-800' : 'bg-blue-200 text-blue-800'
@@ -139,7 +144,7 @@ const AuditorDashboardView: React.FC<AuditorDashboardViewProps> = ({ user, onSel
                                         </span>
                                     </td>
                                 </tr>
-                            )) : (
+                            )}) : (
                                 <tr><td colSpan={4} className="p-4 text-center text-gray-500">No pending checklists assigned.</td></tr>
                             )}
                         </tbody>

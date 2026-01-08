@@ -252,7 +252,10 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
                             <video 
                                 src={previewSrc} 
                                 className="w-full h-full object-cover rounded-lg shadow-md" 
-                                controls 
+                                controls
+                                playsInline
+                                muted
+                                preload="none"
                             />
                         ) : (
                             <img src={previewSrc} alt={`Preview ${index + 1}`} className="w-full h-full object-cover rounded-lg shadow-md" />

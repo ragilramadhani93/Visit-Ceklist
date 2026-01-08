@@ -87,4 +87,4 @@ export interface Outlet {
   manager_id: string | null;
 }
 
-export type View = 'login' | 'admin_dashboard' | 'auditor_dashboard' | 'checklists' | 'findings' | 'user_management' | 'templates' | 'outlet_management' | 'assignments' | 'reports' | 'email_config';
+export type View = 'login' | 'admin_dashboard' | 'auditor_dashboard' | 'checklists' | 'findings' | 'user_management' | 'templates' | 'outlet_management' | 'assignments' | 'reports' | 'email_config' | 'missed_reports';

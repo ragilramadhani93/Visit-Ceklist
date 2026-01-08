@@ -11,6 +11,7 @@ import TemplateEditorView from './components/templates/TemplateEditorView';
 import OutletManagementView from './components/admin/OutletManagementView';
 import AssignmentView from './components/admin/AssignmentView';
 import ReportsView from './components/reports/ReportsView';
+import MissedReportsView from './components/reports/MissedReportsView';
 import EmailConfigView from './components/admin/EmailConfigView';
 import { LogIn, LoaderCircle } from 'lucide-react';
 import Card from './components/shared/Card';
@@ -129,8 +130,9 @@ const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [checklistTemplates, setChecklistTemplates] = useState<ChecklistTemplate[]>([]);
   const [outlets, setOutlets] = useState<Outlet[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [hasLoaded, setHasLoaded] = useState<boolean>(false);
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [view, setView] = useState<View>(() => {
@@ -138,7 +140,7 @@ const App: React.FC = () => {
       const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
       if (activeChecklistId) return 'checklists';
       const lastViewRaw = localStorage.getItem('lastView');
-      const validViews = new Set(['checklists','findings','reports','admin_dashboard','auditor_dashboard','user_management','templates','outlet_management','assignments']);
+      const validViews = new Set(['checklists','findings','reports','admin_dashboard','auditor_dashboard','user_management','templates','outlet_management','assignments','missed_reports']);
       if (lastViewRaw && validViews.has(lastViewRaw)) return lastViewRaw as View;
     } catch (_) { }
     return 'auditor_dashboard';
@@ -226,8 +228,8 @@ const App: React.FC = () => {
               setView('templates');
             } else {
               const lastViewRaw = localStorage.getItem('lastView');
-              const validViews = new Set(['checklists','findings','reports','admin_dashboard','auditor_dashboard','user_management','templates','outlet_management','assignments']);
-              const adminOnlyViews = new Set(['admin_dashboard','assignments','findings','reports','user_management','templates','outlet_management']);
+              const validViews = new Set(['checklists','findings','reports','admin_dashboard','auditor_dashboard','user_management','templates','outlet_management','assignments','missed_reports']);
+              const adminOnlyViews = new Set(['admin_dashboard','assignments','findings','reports','user_management','templates','outlet_management','missed_reports']);
               if (lastViewRaw && validViews.has(lastViewRaw)) {
                 if (userProfile.role === Role.Auditor && adminOnlyViews.has(lastViewRaw)) {
                   safeSetView('auditor_dashboard');
@@ -288,10 +290,8 @@ const App: React.FC = () => {
             console.error("Error handling user session:", error);
             setCurrentUser(null); // Ensure user is logged out on any error.
         } finally {
-            // This is crucial: turn off the initial "Checking authentication..." spinner
-            // only after the very first check is complete.
+            setIsAuthLoading(false);
             if (!initialCheckComplete) {
-                setIsAuthLoading(false);
                 initialCheckComplete = true;
             }
         }
@@ -335,7 +335,9 @@ const App: React.FC = () => {
     };
   }, [setupUserSession]);
   const fetchData = useCallback(async () => {
-    setIsLoading(true);
+    if (!hasLoaded) {
+      setIsLoading(true);
+    }
     try {
         const [usersRes, checklistsRes, tasksRes, templatesRes, outletsRes] = await Promise.all([
             supabase.from('users').select('*'),
@@ -375,15 +377,18 @@ const App: React.FC = () => {
         alert(`Failed to load application data: ${errorMessage}\n\nPlease check your Supabase connection and that the database schema from README.md has been applied correctly.`);
     } finally {
         setIsLoading(false);
+        setHasLoaded(true);
     }
-  }, []);
+  }, [hasLoaded]);
 
   useEffect(() => {
     // Fetch data only after user is authenticated
-    if (currentUser) {
+    if (currentUser && !hasLoaded) {
         fetchData();
     }
-  }, [currentUser, fetchData]);
+  }, [currentUser, fetchData, hasLoaded]);
+
+  
   
   useEffect(() => {
     const onVisibilityChange = () => {
@@ -446,6 +451,7 @@ const App: React.FC = () => {
       } catch (_) {}
       sessionStorage.removeItem('activeChecklistId');
       setCurrentUser(null);
+      setHasLoaded(false);
   }, []);
 
   const handleSelectChecklist = useCallback((checklist: Checklist) => {
@@ -926,7 +932,7 @@ const App: React.FC = () => {
     return <LoginPage />;
   }
 
-  if (isLoading) {
+  if (isLoading && !hasLoaded) {
     return <LoadingSpinner />;
   }
   
@@ -954,6 +960,8 @@ const App: React.FC = () => {
           ? checklists.filter(c => c.assigned_to === currentUser.id)
           : checklists;
         return <ReportsView checklists={reportChecklists} users={users} />;
+      case 'missed_reports':
+        return <MissedReportsView checklists={checklists} users={users} onBack={() => safeSetView('admin_dashboard')} />;
       case 'email_config':
         return <EmailConfigView />;
       case 'user_management':

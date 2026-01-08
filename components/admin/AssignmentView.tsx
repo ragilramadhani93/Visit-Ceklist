@@ -246,6 +246,7 @@ const AssignmentView: React.FC<AssignmentViewProps> = ({ users, outlets, templat
                     <tbody>
                         {sortedChecklists.length > 0 ? sortedChecklists.map(checklist => {
                             const auditor = checklist.assigned_to ? userMap.get(checklist.assigned_to) : null;
+                            const isOverdue = checklist.status !== 'completed' && checklist.due_date && checklist.due_date < new Date().toISOString().split('T')[0];
                             return (
                                 <tr key={checklist.id} className="border-b hover:bg-base-200/50">
                                     <td className="p-3 font-medium text-neutral">{checklist.title}</td>
@@ -260,7 +261,10 @@ const AssignmentView: React.FC<AssignmentViewProps> = ({ users, outlets, templat
                                             <span className="text-gray-400 italic">Unassigned</span>
                                         )}
                                     </td>
-                                    <td className="p-3">{checklist.due_date}</td>
+                                    <td className="p-3">
+                                        {checklist.due_date}
+                                        {isOverdue && <span className="ml-2 text-error font-bold text-xs">(Overdue)</span>}
+                                    </td>
                                     <td className="p-3">{getStatusBadge(checklist.status)}</td>
                                     <td className="p-3 whitespace-nowrap">
                                         <div className="flex items-center space-x-2">

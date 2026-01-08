@@ -155,6 +155,8 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; users: User[]; onResolve
                                             src={finding.photo!}
                                             controls
                                             playsInline
+                                            muted
+                                            preload="none"
                                             className="rounded-lg object-cover w-full h-36 md:h-full bg-black"
                                         />
                                     ) : (
