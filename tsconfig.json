@@ -12,7 +12,9 @@
     "skipLibCheck": true,
     "types": [
       "node",
-      "vitest"
+      "vitest",
+      "vitest/globals",
+      "@testing-library/jest-dom"
     ],
     "moduleResolution": "bundler",
     "isolatedModules": true,
@@ -26,5 +28,9 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "android/**",
+    "supabase/functions/**"
+  ]
 }

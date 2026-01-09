@@ -89,7 +89,7 @@ const EmailConfigView: React.FC = () => {
     }
     
     setLoading(true);
-    const { data, error } = await supabase.rpc('add_email_recipient', {
+    const { data, error } = await (supabase as any).rpc('add_email_recipient', {
       p_email: newEmail,
       p_name: newName || newEmail.split('@')[0],
     });

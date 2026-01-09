@@ -142,7 +142,7 @@ const App: React.FC = () => {
       const lastViewRaw = localStorage.getItem('lastView');
       const validViews = new Set(['checklists','findings','reports','admin_dashboard','auditor_dashboard','user_management','templates','outlet_management','assignments','missed_reports']);
       if (lastViewRaw && validViews.has(lastViewRaw)) return lastViewRaw as View;
-    } catch (_) { }
+    } catch { }
     return 'auditor_dashboard';
   });
   const [selectedChecklist, setSelectedChecklist] = useState<Checklist | null>(null);
@@ -153,7 +153,7 @@ const App: React.FC = () => {
     localStorage.setItem('lastView', next);
     // Security check: if user is Auditor, prevent access to admin-only views
     if (currentUser?.role === Role.Auditor) {
-      const adminOnlyViews = new Set(['admin_dashboard','assignments','findings','user_management','templates','outlet_management','email_config']);
+      const adminOnlyViews = new Set(['admin_dashboard','assignments','user_management','templates','outlet_management','email_config','missed_reports']);
       if (adminOnlyViews.has(next)) {
         setView('auditor_dashboard');
         return;
@@ -262,7 +262,7 @@ const App: React.FC = () => {
                 localStorage.removeItem(key);
               }
             }
-          } catch (_) { /* noop */ }
+          } catch { }
         }
     }
   }, []);
@@ -448,7 +448,7 @@ const App: React.FC = () => {
             localStorage.removeItem(key);
           }
         }
-      } catch (_) {}
+      } catch {}
       sessionStorage.removeItem('activeChecklistId');
       setCurrentUser(null);
       setHasLoaded(false);
@@ -902,7 +902,7 @@ const App: React.FC = () => {
   useEffect(() => {
     try {
       localStorage.setItem('lastView', view);
-    } catch (_) { void 0; }
+    } catch {}
   }, [view]);
 
   
@@ -954,7 +954,16 @@ const App: React.FC = () => {
 
   
       case 'findings':
-        return <FindingsView tasks={tasks} checklists={checklists} users={users} onResolveTask={handleResolveTask} onAssignTask={handleAssignTask} />;
+        const findingsChecklists = currentUser?.role === Role.Auditor
+          ? checklists.filter(c => c.assigned_to === currentUser.id)
+          : checklists;
+        const findingsChecklistIdSet = new Set(findingsChecklists.map(c => c.id));
+        const findingsTasks = currentUser?.role === Role.Auditor
+          ? tasks.filter(t => (t.checklist_id && findingsChecklistIdSet.has(t.checklist_id)) || t.assigned_to === currentUser.id)
+          : tasks;
+        const canAssign = currentUser?.role === Role.Admin;
+        const onAssignTask = canAssign ? handleAssignTask : async () => { alert('Not allowed'); };
+        return <FindingsView tasks={findingsTasks} checklists={findingsChecklists} users={users} onResolveTask={handleResolveTask} onAssignTask={onAssignTask} canAssign={canAssign} />;
       case 'reports':
         const reportChecklists = currentUser?.role === Role.Auditor
           ? checklists.filter(c => c.assigned_to === currentUser.id)

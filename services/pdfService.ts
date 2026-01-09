@@ -136,9 +136,9 @@ export const generateAuditReportPDF = async (
         },
         didDrawCell: (data: any) => {
             if (data.section === 'body' && data.column.index === 4) {
-                // Ensure we are on the correct page for adding links
-                if (doc.internal.getCurrentPageInfo().pageNumber !== data.pageNumber) {
-                    doc.setPage(data.pageNumber);
+                const currentPageNumber = (doc as any).internal?.getCurrentPageInfo?.()?.pageNumber;
+                if (currentPageNumber && currentPageNumber !== data.pageNumber) {
+                  doc.setPage(data.pageNumber);
                 }
 
                 const item = itemsArr[data.row.index];
