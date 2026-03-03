@@ -44,6 +44,16 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
 
   const handleVideoCapture = async (blob: Blob) => {
     try {
+        // Check file size before upload - base64 encoding adds ~33% overhead
+        const maxUploadSize = 3 * 1024 * 1024; // 3MB limit (accounts for base64 overhead)
+        const estimatedBase64Size = (blob.size / 3) * 4;
+        
+        if (estimatedBase64Size > maxUploadSize) {
+            alert(`Video is too large (${Math.round(blob.size / 1024 / 1024)}MB). Maximum video size is 2MB. Please record a shorter video.`);
+            setVideoRecorderOpen(false);
+            return;
+        }
+        
         const url = await uploadPublic('field-ops-photos', blob, `evidence/${item.id}_${Date.now()}.webm`);
         const newEvidence = [...(item.photoEvidence || []), url];
         let updates: Partial<ChecklistItemType> = { photoEvidence: newEvidence };

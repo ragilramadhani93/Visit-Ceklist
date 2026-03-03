@@ -26,10 +26,14 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
     try {
         console.log(`[Storage] Starting upload: ${fileName} (${file.size} bytes)`);
 
-        // Convert file to base64 for transmission - uses chunked encoding for large files
+        // Convert file to base64 for transmission - uses safe loop encoding for large files
         const arrayBuffer = await file.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
+        
+        console.log(`[Storage] Converting to base64... (${bytes.length} bytes)`);
         const bodyBase64 = bufferToBase64(bytes);
+        
+        console.log(`[Storage] Base64 encoded (${bodyBase64.length} bytes). Uploading...`);
 
         // Upload via Vercel API route (server-side) to avoid CORS issues
         const uploadResponse = await fetch('/api/upload', {
@@ -46,7 +50,7 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
         });
 
         if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json();
+            const errorData = await uploadResponse.json().catch(() => ({}));
             throw new Error(errorData.error || `Upload failed (HTTP ${uploadResponse.status})`);
         }
 
