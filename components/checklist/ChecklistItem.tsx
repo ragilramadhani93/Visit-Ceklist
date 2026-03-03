@@ -15,10 +15,8 @@ interface ChecklistItemProps {
 }
 
 const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
-  const photoInputRef = useRef<HTMLInputElement>(null);
   const [previews, setPreviews] = useState<string[]>([]);
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [videoRecorderOpen, setVideoRecorderOpen] = useState(false);
+  const [loadedPreviews, setLoadedPreviews] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const photoSources = item.photoEvidence || [];
@@ -39,6 +37,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
       return `data:image/jpeg;base64,${source}`;
     });
     setPreviews(newPreviews);
+    setLoadedPreviews(new Set()); // Reset loaded state when previews change
     console.log('[Preview] Updated previews count:', newPreviews.length);
   }, [item.photoEvidence, item.evidenceType]);
 
@@ -205,6 +204,22 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
        }
       onChange(item.id, updates);
 
+      // Update loaded previews after removal
+      setLoadedPreviews(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(indexToRemove);
+        // Shift down indices after the removed item
+        const shiftedSet = new Set<number>();
+        for (const idx of newSet) {
+          if (idx > indexToRemove) {
+            shiftedSet.add(idx - 1);
+          } else {
+            shiftedSet.add(idx);
+          }
+        }
+        return shiftedSet;
+      });
+
       if (photoInputRef.current) {
         photoInputRef.current.value = '';
       }
@@ -268,6 +283,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
         {previews.length > 0 && (
             <div className="mt-2 grid grid-cols-3 gap-2">
                 {previews.map((previewSrc, index) => (
+                    loadedPreviews.has(index) ? (
                     <div key={index} className="relative group w-full aspect-square bg-gray-100 rounded-lg overflow-hidden">
                         {isVideo ? (
                             <video 
@@ -284,11 +300,18 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
                                 src={previewSrc} 
                                 alt={`Preview ${index + 1}`} 
                                 className="w-full h-full object-cover rounded-lg shadow-md" 
-                                onError={(e) => {
+                                onError={() => {
                                   console.error('[Image Preview] Failed to load:', previewSrc);
-                                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext x="50" y="50" font-size="14" fill="%23999" text-anchor="middle" dy=".3em"%3EFailed%3C/text%3E%3C/svg%3E';
+                                  setLoadedPreviews(prev => {
+                                    const newSet = new Set(prev);
+                                    newSet.delete(index);
+                                    return newSet;
+                                  });
                                 }}
-                                onLoad={() => console.log('[Image Preview] Loaded successfully:', previewSrc)}
+                                onLoad={() => {
+                                  console.log('[Image Preview] Loaded successfully:', previewSrc);
+                                  setLoadedPreviews(prev => new Set(prev).add(index));
+                                }}
                             />
                         )}
                         <button 
@@ -299,6 +322,14 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
                             <X size={16} />
                         </button>
                     </div>
+                    ) : (
+                    <div key={index} className="relative w-full aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
+                        <div className="text-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-400 border-t-primary mx-auto mb-1"></div>
+                            <span className="text-xs text-gray-500">Loading...</span>
+                        </div>
+                    </div>
+                    )
                 ))}
             </div>
         )}
