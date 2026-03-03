@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Opsify</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: 'hsl(0, 100%, 25%)', // Maroon
+            'primary-focus': 'hsl(0, 100%, 20%)', // Darker Maroon
+            'primary-content': 'hsl(0, 0%, 100%)',
+            secondary: 'hsl(180, 50%, 50%)',
+            accent: 'hsl(0, 100%, 25%)', // Maroon
+            neutral: 'hsl(220, 10%, 20%)',
+            'base-100': 'hsl(0, 0%, 100%)',
+            'base-200': 'hsl(220, 12%, 95%)',
+            'base-300': 'hsl(220, 10%, 88%)',
+            info: 'hsl(190, 70%, 55%)',
+            success: 'hsl(140, 60%, 50%)',
+            warning: 'hsl(40, 90%, 60%)',
+            error: 'hsl(0, 70%, 60%)',
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body class="bg-base-200">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
