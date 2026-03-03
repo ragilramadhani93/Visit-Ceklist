@@ -91,18 +91,17 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
         // Decode base64 to bytes
         try {
-            const binaryString = atob(bodyBase64);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
+            // Use Buffer for reliable binary handling in Node.js
+            const bodyBuffer = Buffer.from(bodyBase64, 'base64');
+            const bytes = new Uint8Array(bodyBuffer.buffer, bodyBuffer.byteOffset, bodyBuffer.byteLength);
 
             const endpoint = `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${fileName}`;
 
-            console.log(`[Upload] Uploading to R2: ${endpoint} (size: ${bytes.length} bytes)`);
+            console.log(`[Upload] Uploading to R2: ${endpoint} (size: ${bodyBuffer.length} bytes)`);
 
             const headers: Record<string, string> = {
                 'content-type': contentType || 'application/octet-stream',
+                'content-length': String(bodyBuffer.length),
             };
 
             const signedHeaders = await signRequest('PUT', endpoint, headers, bytes);
@@ -112,7 +111,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             const uploadResponse = await fetch(endpoint, {
                 method: 'PUT',
                 headers: signedHeaders,
-                body: bytes,
+                body: bodyBuffer,
             });
 
             console.log(`[Upload] R2 response status: ${uploadResponse.status}`);
