@@ -22,6 +22,7 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
             },
             body: JSON.stringify({
                 fileName,
+                bucket: _bucket,
                 contentType: file.type || 'application/octet-stream',
                 bodyBase64,
             }),

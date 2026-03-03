@@ -4,7 +4,6 @@ const accountId = process.env.VITE_R2_ACCOUNT_ID;
 const accessKeyId = process.env.VITE_R2_ACCESS_KEY_ID;
 const secretAccessKey = process.env.VITE_R2_SECRET_ACCESS_KEY;
 const publicUrlBase = process.env.VITE_R2_PUBLIC_URL;
-const bucketName = process.env.VITE_R2_BUCKET_NAME || 'field-ops-photos';
 
 async function hmacSha256(key: ArrayBuffer | Uint8Array, message: string): Promise<ArrayBuffer> {
     const cryptoKey = await crypto.subtle.importKey('raw', key as ArrayBuffer, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -81,10 +80,10 @@ export default async (req: VercelRequest, res: VercelResponse) => {
     }
 
     try {
-        const { fileName, contentType, bodyBase64 } = req.body;
+        const { fileName, contentType, bodyBase64, bucket } = req.body;
 
-        if (!fileName || !bodyBase64) {
-            return res.status(400).json({ error: 'Missing fileName or file data' });
+        if (!fileName || !bodyBase64 || !bucket) {
+            return res.status(400).json({ error: 'Missing fileName, bucket, or file data' });
         }
 
         // Decode base64 to bytes
@@ -94,7 +93,9 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             bytes[i] = binaryString.charCodeAt(i);
         }
 
-        const endpoint = `https://${accountId}.r2.cloudflarestorage.com/${bucketName}/${fileName}`;
+        const endpoint = `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${fileName}`;
+
+        console.log(`[Upload] Uploading to R2: ${endpoint}`);
 
         const headers: Record<string, string> = {
             'content-type': contentType || 'application/octet-stream',
@@ -110,16 +111,17 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
         if (!uploadResponse.ok) {
             const errorText = await uploadResponse.text();
-            console.error(`R2 upload failed (${uploadResponse.status}):`, errorText);
+            console.error(`[Upload] R2 upload failed (${uploadResponse.status}):`, errorText);
             return res.status(uploadResponse.status).json({ error: `R2 upload failed: ${errorText}` });
         }
 
         const base = publicUrlBase.endsWith('/') ? publicUrlBase.slice(0, -1) : publicUrlBase;
         const publicUrl = `${base}/${fileName}`;
 
+        console.log(`[Upload] Success: ${publicUrl}`);
         return res.status(200).json({ url: publicUrl });
     } catch (error: any) {
-        console.error('Upload error:', error);
+        console.error('[Upload] Error:', error);
         return res.status(500).json({ error: error?.message || 'Upload failed' });
     }
 };
