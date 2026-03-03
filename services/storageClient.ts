@@ -8,12 +8,17 @@ const bucketName = (import.meta as any).env?.VITE_R2_BUCKET_NAME as string | und
 
 // Efficient base64 encoding that handles large files without call stack overflow
 function bufferToBase64(buffer: Uint8Array): string {
-    const CHUNK_SIZE = 32768; // 32KB chunks
+    const CHUNK_SIZE = 4096; // Small chunks to avoid apply() overflow
     let result = '';
+    
     for (let i = 0; i < buffer.length; i += CHUNK_SIZE) {
         const chunk = buffer.subarray(i, Math.min(i + CHUNK_SIZE, buffer.length));
-        result += String.fromCharCode.apply(null, Array.from(chunk) as any);
+        // Use a loop instead of apply() to avoid call stack overflow
+        for (let j = 0; j < chunk.length; j++) {
+            result += String.fromCharCode(chunk[j]);
+        }
     }
+    
     return btoa(result);
 }
 
