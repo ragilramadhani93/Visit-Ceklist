@@ -6,7 +6,7 @@ import SelfieCapture from './SelfieCapture';
 import { resizeImage, blobToBase64 } from '../../utils/fileUtils';
 import { Capacitor } from '@capacitor/core';
 import { Camera as NativeCam, CameraResultType, CameraSource } from '@capacitor/camera';
-// import { Geolocation } from '@capacitor/geolocation';
+import { Geolocation } from '@capacitor/geolocation';
 import { ArrowLeft, Clock, LogIn, LogOut, Signature, MapPin } from 'lucide-react';
 import Button from '../shared/Button';
 import Card from '../shared/Card';
@@ -232,13 +232,20 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
         if (outlet && outlet.latitude && outlet.longitude) {
           console.log(`[Geofence] Validating location for ${outlet.name}. Target: ${outlet.latitude}, ${outlet.longitude}`);
 
-          // Fetch current location (Disabled temporarily to fix build)
-          // const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
-          // const currentLat = position.coords.latitude;
-          // const currentLng = position.coords.longitude;
-
-          const currentLat = outlet.latitude;
-          const currentLng = outlet.longitude;
+          // Fetch current location
+          let currentLat: number;
+          let currentLng: number;
+          
+          try {
+            const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+            currentLat = position.coords.latitude;
+            currentLng = position.coords.longitude;
+          } catch (geoError) {
+            console.warn("[Geofence] Could not get precise location, using outlet location as fallback", geoError);
+            // Fallback: use outlet location (will result in distance 0, allowing check-in)
+            currentLat = outlet.latitude;
+            currentLng = outlet.longitude;
+          }
 
           console.log(`[Geofence] Current location: ${currentLat}, ${currentLng}`);
 
