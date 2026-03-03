@@ -106,8 +106,6 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
       }
     }
   };
-    }
-  };
   
   const handleCameraCapture = async (blob: Blob) => {
     try {
