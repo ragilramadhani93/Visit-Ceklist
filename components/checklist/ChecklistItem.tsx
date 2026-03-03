@@ -51,8 +51,10 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
             updates.aiAnalysisResult = '';
         }
         onChange(item.id, updates);
-    } catch (e) {
-        console.error(e);
+    } catch (e: any) {
+        const errorMessage = e?.message || String(e);
+        console.error("Video capture error:", e);
+        alert(`Failed to save video: ${errorMessage}`);
     } finally {
         setVideoRecorderOpen(false);
     }
@@ -95,9 +97,15 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
             onChange(item.id, updates);
         }
 
-      } catch (error) {
-        console.error("Error converting file to base64", error);
+      } catch (error: any) {
+        const errorMessage = error?.message || String(error);
+        console.error("Error uploading file:", error);
+        alert(`Failed to upload photo: ${errorMessage}`);
+      } finally {
+        if (photoInputRef.current) photoInputRef.current.value = '';
       }
+    }
+  };
     }
   };
   
@@ -113,8 +121,10 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
         updates.aiAnalysisResult = '';
       }
       onChange(item.id, updates);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      const errorMessage = e?.message || String(e);
+      console.error("Photo capture error:", e);
+      alert(`Failed to save photo: ${errorMessage}`);
     } finally {
       setCameraOpen(false);
     }

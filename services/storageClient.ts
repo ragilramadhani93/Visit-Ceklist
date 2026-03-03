@@ -7,7 +7,11 @@ const bucketName = (import.meta as any).env?.VITE_R2_BUCKET_NAME as string | und
 const isConfigured = !!accountId && !!accessKeyId && !!secretAccessKey;
 
 if (!isConfigured) {
-    console.error('Cloudflare R2 configuration missing. Please set VITE_R2_ACCOUNT_ID, VITE_R2_ACCESS_KEY_ID, and VITE_R2_SECRET_ACCESS_KEY.');
+    const missing = [];
+    if (!accountId) missing.push('VITE_R2_ACCOUNT_ID');
+    if (!accessKeyId) missing.push('VITE_R2_ACCESS_KEY_ID');
+    if (!secretAccessKey) missing.push('VITE_R2_SECRET_ACCESS_KEY');
+    console.error(`Cloudflare R2 configuration incomplete. Missing: ${missing.join(', ')}`);
 }
 
 // --- Lightweight S3-compatible signing for Cloudflare R2 ---
@@ -77,7 +81,15 @@ async function signRequest(method: string, url: string, headers: Record<string, 
 
 export const uploadPublic = async (_bucket: string, file: Blob | File, fileName: string): Promise<string> => {
     if (!isConfigured) {
-        throw new Error('Cloudflare R2 is not configured. Cannot upload.');
+        const missing = [];
+        if (!accountId) missing.push('VITE_R2_ACCOUNT_ID');
+        if (!accessKeyId) missing.push('VITE_R2_ACCESS_KEY_ID');
+        if (!secretAccessKey) missing.push('VITE_R2_SECRET_ACCESS_KEY');
+        throw new Error(`Photo upload failed: Cloudflare R2 not configured. Missing: ${missing.join(', ')}`);
+    }
+
+    if (!publicUrlBase) {
+        throw new Error('Photo upload failed: Public URL base (VITE_R2_PUBLIC_URL) is not configured');
     }
 
     const bucket = bucketName || _bucket;
@@ -101,12 +113,7 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
 
     if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Storage upload error (${response.status}): ${errorText}`);
-    }
-
-    if (!publicUrlBase) {
-        console.warn('VITE_R2_PUBLIC_URL is not set. Using fallback URL.');
-        return `https://your-custom-domain.com/${fileName}`;
+        throw new Error(`Photo upload failed (HTTP ${response.status}): ${errorText}`);
     }
 
     const base = publicUrlBase.endsWith('/') ? publicUrlBase.slice(0, -1) : publicUrlBase;
