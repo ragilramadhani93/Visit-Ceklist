@@ -15,8 +15,11 @@ interface ChecklistItemProps {
 }
 
 const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [previews, setPreviews] = useState<string[]>([]);
   const [loadedPreviews, setLoadedPreviews] = useState<Set<number>>(new Set());
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [videoRecorderOpen, setVideoRecorderOpen] = useState(false);
 
   useEffect(() => {
     const photoSources = item.photoEvidence || [];
