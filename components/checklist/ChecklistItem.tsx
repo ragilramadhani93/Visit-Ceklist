@@ -25,9 +25,11 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
     const newPreviews = photoSources.map(source => {
       if (source.startsWith('http')) {
         // It's an already uploaded URL that is safe to use.
+        console.log('[Preview] Using HTTP URL:', source);
         return source;
       }
       if (source.startsWith('data:')) {
+        console.log('[Preview] Using data URL');
         return source;
       }
       // It's a base64 string from a new photo/video or restored session.
@@ -37,6 +39,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
       return `data:image/jpeg;base64,${source}`;
     });
     setPreviews(newPreviews);
+    console.log('[Preview] Updated previews count:', newPreviews.length);
   }, [item.photoEvidence, item.evidenceType]);
 
   const handleVideoCapture = async (blob: Blob) => {
@@ -255,7 +258,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
         {previews.length > 0 && (
             <div className="mt-2 grid grid-cols-3 gap-2">
                 {previews.map((previewSrc, index) => (
-                    <div key={index} className="relative group w-full aspect-square">
+                    <div key={index} className="relative group w-full aspect-square bg-gray-100 rounded-lg overflow-hidden">
                         {isVideo ? (
                             <video 
                                 src={previewSrc} 
@@ -264,9 +267,19 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
                                 playsInline
                                 muted
                                 preload="none"
+                                onError={() => console.error('[Video Preview] Failed to load:', previewSrc)}
                             />
                         ) : (
-                            <img src={previewSrc} alt={`Preview ${index + 1}`} className="w-full h-full object-cover rounded-lg shadow-md" />
+                            <img 
+                                src={previewSrc} 
+                                alt={`Preview ${index + 1}`} 
+                                className="w-full h-full object-cover rounded-lg shadow-md" 
+                                onError={(e) => {
+                                  console.error('[Image Preview] Failed to load:', previewSrc);
+                                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext x="50" y="50" font-size="14" fill="%23999" text-anchor="middle" dy=".3em"%3EFailed%3C/text%3E%3C/svg%3E';
+                                }}
+                                onLoad={() => console.log('[Image Preview] Loaded successfully:', previewSrc)}
+                            />
                         )}
                         <button 
                             onClick={() => removePhoto(index)} 

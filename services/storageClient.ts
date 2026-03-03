@@ -34,8 +34,10 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
         }
 
         const result = await uploadResponse.json();
+        console.log('[Storage] Upload successful, URL:', result.url);
         return result.url;
     } catch (error: any) {
+        console.error('[Storage] Upload error:', error);
         throw new Error(`Photo upload failed: ${error?.message || String(error)}`);
     }
 };
