@@ -12,6 +12,7 @@ import OutletManagementView from './components/admin/OutletManagementView';
 import AssignmentView from './components/admin/AssignmentView';
 import ReportsView from './components/reports/ReportsView';
 import MissedReportsView from './components/reports/MissedReportsView';
+<<<<<<< HEAD
 import WhatsAppConfigView from './components/admin/WhatsAppConfigView';
 import { sendWhatsAppMessage } from './services/whatsappClient';
 import { LogIn, LoaderCircle } from 'lucide-react';
@@ -61,16 +62,126 @@ const LoginPage: React.FC = () => {
       </div>
     </div>
   );
+=======
+import EmailConfigView from './components/admin/EmailConfigView';
+import { LogIn, LoaderCircle } from 'lucide-react';
+import Card from './components/shared/Card';
+import Button from './components/shared/Button';
+import { supabase } from './services/supabaseClient';
+import { base64ToBlob } from './utils/fileUtils';
+import { generateAuditReportPDF } from './services/pdfService';
+import ProgressOverlay from './components/shared/ProgressOverlay';
+import type { Session } from '@supabase/supabase-js';
+
+const LOGO_URL = (import.meta as any).env?.VITE_LOGO_URL || "https://xkzmddgcwcqvhicdqrpa.supabase.co/storage/v1/object/public/field-ops-photos/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1%20(1).jpg";
+
+
+const LoginPage: React.FC = () => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [logoSrc, setLogoSrc] = useState<string>(LOGO_URL);
+    const [sanitizedTried, setSanitizedTried] = useState(false);
+    const sanitizeUrl = (url: string) => url.replace(/\(/g, '%28').replace(/\)/g, '%29');
+
+    useEffect(() => {
+        const loginError = sessionStorage.getItem('loginError');
+        if (loginError) {
+            setError(loginError);
+            sessionStorage.removeItem('loginError');
+        }
+    }, []);
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        try {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+            // The onAuthStateChange listener in App.tsx will handle the redirect.
+        } catch (err: any) {
+            setError(err.error_description || err.message || "An unknown error occurred.");
+        }
+        setLoading(false);
+    };
+
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-base-200">
+            <Card className="w-full max-w-sm text-center shadow-2xl p-8">
+                {logoSrc ? (
+                  <img
+                    src={logoSrc}
+                    alt="Kapal Api Coffee Corner Logo"
+                    className="mx-auto w-48 mb-6"
+                    onError={() => {
+                      if (!sanitizedTried) {
+                        setSanitizedTried(true);
+                        setLogoSrc(sanitizeUrl(logoSrc));
+                      } else {
+                        setLogoSrc('');
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="mx-auto w-48 h-16 mb-6 flex items-center justify-center text-neutral font-semibold">
+                    Kapal Api Coffee Corner
+                  </div>
+                )}
+                <h1 className="text-2xl font-bold text-neutral mb-2">Welcome Back</h1>
+                <p className="text-gray-600 mb-6">Please sign in to continue</p>
+                <form onSubmit={handleLogin} className="space-y-4 text-left">
+                    <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email Address</label>
+                        <input
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+                        <input
+                            type="password"
+                            id="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        />
+                    </div>
+                    {error && <p className="text-sm text-center text-error">{error}</p>}
+                    <Button type="submit" isLoading={loading} className="w-full !py-3 !text-lg transition-transform transform hover:scale-105">
+                        <LogIn className="mr-2" /> Sign In
+                    </Button>
+                </form>
+            </Card>
+        </div>
+    );
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
 };
 
 
 const LoadingSpinner: React.FC<{ message?: string }> = ({ message = "Loading Application Data..." }) => (
+<<<<<<< HEAD
   <div className="flex items-center justify-center min-h-screen bg-base-200">
     <div className="text-center">
       <LoaderCircle className="w-16 h-16 text-primary animate-spin mx-auto" />
       <p className="mt-4 text-lg text-neutral font-semibold">{message}</p>
     </div>
   </div>
+=======
+    <div className="flex items-center justify-center min-h-screen bg-base-200">
+        <div className="text-center">
+            <LoaderCircle className="w-16 h-16 text-primary animate-spin mx-auto" />
+            <p className="mt-4 text-lg text-neutral font-semibold">{message}</p>
+        </div>
+    </div>
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
 );
 
 
@@ -83,18 +194,27 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
+<<<<<<< HEAD
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const { isLoaded: isClerkLoaded, isSignedIn, user: clerkUser } = useUser();
   const { signOut } = useClerk();
 
+=======
+  
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
   const [view, setView] = useState<View>(() => {
     try {
       const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
       if (activeChecklistId) return 'checklists';
       const lastViewRaw = localStorage.getItem('lastView');
+<<<<<<< HEAD
       const validViews = new Set(['checklists', 'findings', 'reports', 'admin_dashboard', 'auditor_dashboard', 'user_management', 'templates', 'outlet_management', 'assignments', 'missed_reports']);
+=======
+      const validViews = new Set(['checklists','findings','reports','admin_dashboard','auditor_dashboard','user_management','templates','outlet_management','assignments','missed_reports']);
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
       if (lastViewRaw && validViews.has(lastViewRaw)) return lastViewRaw as View;
     } catch { }
     return 'auditor_dashboard';
@@ -107,7 +227,11 @@ const App: React.FC = () => {
     localStorage.setItem('lastView', next);
     // Security check: if user is Auditor, prevent access to admin-only views
     if (currentUser?.role === Role.Auditor) {
+<<<<<<< HEAD
       const adminOnlyViews = new Set(['admin_dashboard', 'assignments', 'user_management', 'templates', 'outlet_management', 'whatsapp_config', 'missed_reports']);
+=======
+      const adminOnlyViews = new Set(['admin_dashboard','assignments','user_management','templates','outlet_management','email_config','missed_reports']);
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
       if (adminOnlyViews.has(next)) {
         setView('auditor_dashboard');
         return;
@@ -117,6 +241,7 @@ const App: React.FC = () => {
   }, [currentUser]);
 
   // Fetch user profile and set view based on role
+<<<<<<< HEAD
   const setupUserSession = useCallback(async (userId: string, userEmail: string = '', userName: string = '') => {
     const fetchUserProfileWithRetry = async (retries = 3, delay = 500): Promise<User | null> => {
       for (let i = 0; i < retries; i++) {
@@ -127,6 +252,16 @@ const App: React.FC = () => {
           if (res.rows.length > 0) userProfile = res.rows[0];
           else error = { code: 'PGRST116', message: 'Not found' };
         } catch (e: any) { error = e; }
+=======
+  const setupUserSession = useCallback(async (userId: string, userEmail?: string) => {
+    const fetchUserProfileWithRetry = async (retries = 3, delay = 500): Promise<User | null> => {
+      for (let i = 0; i < retries; i++) {
+        const { data: userProfile, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single();
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
 
         if (!error && userProfile) {
           return userProfile as User;
@@ -162,6 +297,7 @@ const App: React.FC = () => {
       // to trigger failures or for users created before the trigger was active.
       if (!userProfile) {
         console.warn(`User profile for ${userId} not found. Creating a new one.`);
+<<<<<<< HEAD
         let newUserProfile: any = null;
         let insertError: any = null;
         try {
@@ -169,6 +305,12 @@ const App: React.FC = () => {
           const res = await turso.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [userId] });
           newUserProfile = res.rows[0];
         } catch (e: any) { insertError = e; }
+=======
+        const { data: newUserProfile, error: insertError } = await (supabase.from('users') as any)
+          .insert({ id: userId, email: userEmail, role: Role.Auditor }) // Sensible defaults
+          .select()
+          .single();
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
 
         if (insertError) {
           throw new Error(`Failed to create user profile: ${insertError.message}`);
@@ -180,6 +322,7 @@ const App: React.FC = () => {
         setCurrentUser(userProfile);
         const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
         if (activeChecklistId) {
+<<<<<<< HEAD
           setView('checklists');
         } else {
           const templateActive = localStorage.getItem('templateDraftActive') === '1';
@@ -201,11 +344,35 @@ const App: React.FC = () => {
               safeSetView('auditor_dashboard');
             }
           }
+=======
+            setView('checklists');
+        } else {
+            const templateActive = localStorage.getItem('templateDraftActive') === '1';
+            if (templateActive) {
+              setView('templates');
+            } else {
+              const lastViewRaw = localStorage.getItem('lastView');
+              const validViews = new Set(['checklists','findings','reports','admin_dashboard','auditor_dashboard','user_management','templates','outlet_management','assignments','missed_reports']);
+              const adminOnlyViews = new Set(['admin_dashboard','assignments','findings','reports','user_management','templates','outlet_management','missed_reports']);
+              if (lastViewRaw && validViews.has(lastViewRaw)) {
+                if (userProfile.role === Role.Auditor && adminOnlyViews.has(lastViewRaw)) {
+                  safeSetView('auditor_dashboard');
+                } else {
+                  safeSetView(lastViewRaw as View);
+                }
+              } else if (userProfile.role === Role.Admin) {
+                safeSetView('admin_dashboard');
+              } else {
+                safeSetView('auditor_dashboard');
+              }
+            }
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
         }
       } else {
         throw new Error("User profile could not be found or created. This is an unexpected error.");
       }
     } catch (error: any) {
+<<<<<<< HEAD
       console.error("Error setting up user session:", error);
       const message = String(error?.message || "An unknown error occurred.");
       const isNetworkError = /Failed to fetch|NetworkError|ERR_ABORTED/i.test(message);
@@ -223,12 +390,32 @@ const App: React.FC = () => {
           }
         } catch { }
       }
+=======
+        console.error("Error setting up user session:", error);
+        const message = String(error?.message || "An unknown error occurred.");
+        const isNetworkError = /Failed to fetch|NetworkError|ERR_ABORTED/i.test(message);
+        const errorMessage = isNetworkError
+          ? `Network issue while setting up session. Please check your connection and try again.`
+          : `Failed to set up session: ${message}\nPlease check the database permissions or try again.`;
+        sessionStorage.setItem('loginError', errorMessage);
+        if (!isNetworkError) {
+          try {
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('sb-') && key.includes('auth-token')) {
+                localStorage.removeItem(key);
+              }
+            }
+          } catch { }
+        }
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     }
   }, []);
 
   // FIX: This new `useEffect` provides a more robust authentication flow. It handles the initial
   // session check, listens for auth changes, and crucially, adds a 'pageshow' event listener.
   // This listener re-validates the session when a user navigates back to the page using the
+<<<<<<< HEAD
   // browser's back/forward cache (bfcache).
   useEffect(() => {
     const handleSession = async () => {
@@ -254,11 +441,78 @@ const App: React.FC = () => {
 
     handleSession();
   }, [isClerkLoaded, isSignedIn, clerkUser, setupUserSession]);
+=======
+  // browser's back button, which prevents the app from getting stuck in a loading state due
+  // to the browser's back/forward cache (bfcache).
+  useEffect(() => {
+    // This flag ensures the onAuthStateChange listener doesn't clash with the initial getSession call.
+    let initialCheckComplete = false;
+
+    // A centralized function to handle setting the user state based on a session.
+    const handleSession = async (session: Session | null) => {
+        try {
+            if (session?.user) {
+                // If there's a user in the session, set up their profile.
+                await setupUserSession(session.user.id, session.user.email);
+            } else {
+                // If no session or user, clear the current user state.
+                setCurrentUser(null);
+            }
+        } catch (error) {
+            console.error("Error handling user session:", error);
+            setCurrentUser(null); // Ensure user is logged out on any error.
+        } finally {
+            setIsAuthLoading(false);
+            if (!initialCheckComplete) {
+                initialCheckComplete = true;
+            }
+        }
+    };
+
+    // 1. Perform an initial check for the user's session when the app loads.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        handleSession(session);
+    }).catch(error => {
+        // This would be a critical failure, e.g., network error.
+        console.error("Critical error on initial getSession():", error);
+        handleSession(null); // Treat as logged out.
+    });
+
+    // 2. Listen for any subsequent changes in the authentication state (login, logout).
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        // Once the initial check is done, this listener takes over.
+        if (initialCheckComplete) {
+            handleSession(session);
+        }
+    });
+
+    // 3. Add a listener to handle the page being restored from the browser's back/forward cache (bfcache).
+    const handlePageShow = (event: PageTransitionEvent) => {
+        // The 'persisted' property is true if the page is from bfcache.
+        if (event.persisted) {
+            console.log("Page restored from bfcache. Re-checking auth status.");
+            // The session might be stale, so we re-fetch it.
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                handleSession(session);
+            });
+        }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+
+    // Cleanup function to remove listeners when the component unmounts.
+    return () => {
+        subscription.unsubscribe();
+        window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, [setupUserSession]);
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
   const fetchData = useCallback(async () => {
     if (!hasLoaded) {
       setIsLoading(true);
     }
     try {
+<<<<<<< HEAD
       const processJSON = (rows: any[], cols: string[]) => rows.map((r: any) => {
         const newR = { ...r };
         cols.forEach(c => { if (typeof newR[c] === 'string') { try { newR[c] = JSON.parse(newR[c]); } catch { } } });
@@ -307,18 +561,68 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
       setHasLoaded(true);
+=======
+        const [usersRes, checklistsRes, tasksRes, templatesRes, outletsRes] = await Promise.all([
+            supabase.from('users').select('*'),
+            supabase.from('checklists').select('*'),
+            supabase.from('tasks').select('*'),
+            supabase.from('checklist_templates').select('*'),
+            supabase.from('outlets').select('*'),
+        ]);
+
+        if (usersRes.error) throw usersRes.error;
+        if (checklistsRes.error) throw checklistsRes.error;
+        if (tasksRes.error) throw tasksRes.error;
+        if (templatesRes.error) throw templatesRes.error;
+        if (outletsRes.error) throw outletsRes.error;
+
+        // Process checklists to ensure 'items' is always an array
+        // FIX: Explicitly cast the mapped item `c` to `any` to resolve a TypeScript
+        // inference issue where `c` was incorrectly typed as `never`. This also
+        // makes the `items` processing more robust by ensuring it's always an array.
+        const processedChecklists = (checklistsRes.data || []).map((c: any) => ({
+          ...c,
+          items: Array.isArray(c.items) ? c.items : [],
+        }));
+
+        setUsers(usersRes.data as User[]);
+        setChecklists(processedChecklists as unknown as Checklist[]);
+        setTasks(tasksRes.data as unknown as Task[]);
+        const processedTemplates = (templatesRes.data || []).map((t: any) => ({
+          ...t,
+          items: Array.isArray(t.items) ? t.items : [],
+        }));
+        setChecklistTemplates(processedTemplates as unknown as ChecklistTemplate[]);
+        setOutlets(outletsRes.data as Outlet[]);
+    } catch (error: any) {
+        console.error("Error fetching data:", error);
+        const errorMessage = error?.message || "An unknown error occurred. See console for details.";
+        alert(`Failed to load application data: ${errorMessage}\n\nPlease check your Supabase connection and that the database schema from README.md has been applied correctly.`);
+    } finally {
+        setIsLoading(false);
+        setHasLoaded(true);
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     }
   }, [hasLoaded]);
 
   useEffect(() => {
     // Fetch data only after user is authenticated
     if (currentUser && !hasLoaded) {
+<<<<<<< HEAD
       fetchData();
     }
   }, [currentUser, fetchData, hasLoaded]);
 
 
 
+=======
+        fetchData();
+    }
+  }, [currentUser, fetchData, hasLoaded]);
+
+  
+  
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
   useEffect(() => {
     const onVisibilityChange = () => {
       if (!document.hidden) {
@@ -337,11 +641,16 @@ const App: React.FC = () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [checklists, safeSetView]);
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
   // FIX: This effect handles the "reload after camera" issue.
   // If the app reloads and we have an active checklist ID in sessionStorage, this effect
   // finds that checklist and restores it to the state, putting the user back where they were.
   useEffect(() => {
+<<<<<<< HEAD
     if (checklists.length > 0 && !selectedChecklist) {
       const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
       if (activeChecklistId) {
@@ -355,6 +664,21 @@ const App: React.FC = () => {
         }
       }
     }
+=======
+      if (checklists.length > 0 && !selectedChecklist) {
+          const activeChecklistId = sessionStorage.getItem('activeChecklistId') || localStorage.getItem('activeChecklistId');
+          if (activeChecklistId) {
+              const found = checklists.find(c => c.id === activeChecklistId);
+              if (found) {
+                  setSelectedChecklist(found);
+                  safeSetView('checklists');
+              } else {
+                  sessionStorage.removeItem('activeChecklistId');
+                  localStorage.removeItem('activeChecklistId');
+              }
+          }
+      }
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
   }, [checklists, selectedChecklist]);
 
   useEffect(() => {
@@ -370,6 +694,7 @@ const App: React.FC = () => {
   }, [view]);
 
   const handleLogout = useCallback(async () => {
+<<<<<<< HEAD
     try {
       await signOut();
     } catch { }
@@ -377,6 +702,20 @@ const App: React.FC = () => {
     setCurrentUser(null);
     setHasLoaded(false);
   }, [signOut]);
+=======
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('sb-') && key.includes('auth-token')) {
+            localStorage.removeItem(key);
+          }
+        }
+      } catch {}
+      sessionStorage.removeItem('activeChecklistId');
+      setCurrentUser(null);
+      setHasLoaded(false);
+  }, []);
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
 
   const handleSelectChecklist = useCallback((checklist: Checklist) => {
     setSelectedChecklist(checklist);
@@ -391,12 +730,21 @@ const App: React.FC = () => {
     // FIX: Comprehensive cleanup of session storage for the specific checklist
     // being exited. This prevents stale data from persisting.
     if (selectedChecklist) {
+<<<<<<< HEAD
       sessionStorage.removeItem(`checklistState_${selectedChecklist.id}`);
       sessionStorage.removeItem(`checklistIndex_${selectedChecklist.id}`);
     }
     sessionStorage.removeItem('activeChecklistId');
     localStorage.removeItem('activeChecklistId');
 
+=======
+        sessionStorage.removeItem(`checklistState_${selectedChecklist.id}`);
+        sessionStorage.removeItem(`checklistIndex_${selectedChecklist.id}`);
+    }
+    sessionStorage.removeItem('activeChecklistId');
+    localStorage.removeItem('activeChecklistId');
+    
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     setSelectedChecklist(null);
     safeSetView(currentUser?.role === Role.Admin ? 'admin_dashboard' : 'auditor_dashboard');
   }, [currentUser, selectedChecklist]);
@@ -414,6 +762,7 @@ const App: React.FC = () => {
     // Casting `from('users')` to `any` forces the `update` method to accept any object,
     // which resolves the "not assignable to never" error. This pattern is used
     // elsewhere in this file for `insert` and `upsert` operations.
+<<<<<<< HEAD
     let data: any = null;
     let error: any = null;
     try {
@@ -423,12 +772,16 @@ const App: React.FC = () => {
       const res = await turso.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [id] });
       data = res.rows;
     } catch (e: any) { error = e; }
+=======
+    const { data, error } = await (supabase.from('users') as any).update(updateData).eq('id', id).select();
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     if (error) {
       alert(`Error updating user: ${error.message}`);
     } else if (data) {
       setUsers(prev => prev.map(u => u.id === updatedUser.id ? data[0] as User : u));
     }
   };
+<<<<<<< HEAD
 
   const handleDeleteUser = async (userId: string) => {
     if (currentUser?.id === userId) {
@@ -446,6 +799,23 @@ const App: React.FC = () => {
       } else {
         setUsers(prev => prev.filter(u => u.id !== userId));
       }
+=======
+  
+  const handleDeleteUser = async (userId: string) => {
+    if (currentUser?.id === userId) {
+        alert("You cannot delete your own account.");
+        return;
+    }
+     // Deleting from auth.users is a protected operation, best done server-side or in the dashboard.
+     // This will only delete the public profile.
+    if (window.confirm('Are you sure you want to delete this user profile? This action cannot be undone.')) {
+        const { error } = await supabase.from('users').delete().eq('id', userId);
+        if (error) {
+            alert(`Error deleting user: ${error.message}`);
+        } else {
+            setUsers(prev => prev.filter(u => u.id !== userId));
+        }
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     }
   };
 
@@ -468,6 +838,7 @@ const App: React.FC = () => {
       items: normalizedItems,
     };
 
+<<<<<<< HEAD
     let data: any = null;
     let error: any = null;
     try {
@@ -486,6 +857,12 @@ const App: React.FC = () => {
       data = res.rows[0];
       if (data && typeof data.items === 'string') data.items = JSON.parse(data.items);
     } catch (e: any) { error = e; }
+=======
+    const { data, error } = await (supabase.from('checklist_templates') as any)
+      .upsert(payload)
+      .select()
+      .single();
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     if (error) {
       alert(`Error saving template: ${error.message}`);
     } else if (data) {
@@ -503,6 +880,7 @@ const App: React.FC = () => {
   };
 
   const handleAddOutlet = async (newOutlet: Omit<Outlet, 'id'>) => {
+<<<<<<< HEAD
     let data: any = null;
     let error: any = null;
     try {
@@ -514,6 +892,12 @@ const App: React.FC = () => {
       const res = await turso.execute({ sql: 'SELECT * FROM outlets WHERE id = ?', args: [newId] });
       data = res.rows[0];
     } catch (e: any) { error = e; }
+=======
+    const { data, error } = await (supabase.from('outlets') as any)
+      .insert(newOutlet)
+      .select()
+      .single();
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     if (error) {
       alert(`Error adding outlet: ${error.message}`);
     } else if (data) {
@@ -523,6 +907,7 @@ const App: React.FC = () => {
 
   const handleUpdateOutlet = async (updatedOutlet: Outlet) => {
     const { id, ...updateData } = updatedOutlet;
+<<<<<<< HEAD
     let data: any = null;
     let error: any = null;
     try {
@@ -532,6 +917,13 @@ const App: React.FC = () => {
       const res = await turso.execute({ sql: 'SELECT * FROM outlets WHERE id = ?', args: [id] });
       data = res.rows[0];
     } catch (e: any) { error = e; }
+=======
+    const { data, error } = await (supabase.from('outlets') as any)
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     if (error) {
       alert(`Error updating outlet: ${error.message}`);
     } else if (data) {
@@ -541,9 +933,13 @@ const App: React.FC = () => {
 
   const handleDeleteOutlet = async (outletId: string) => {
     if (window.confirm('Are you sure you want to delete this outlet?')) {
+<<<<<<< HEAD
       let error: any = null;
       try { await turso.execute({ sql: 'DELETE FROM outlets WHERE id = ?', args: [outletId] }); }
       catch (e: any) { error = e; }
+=======
+      const { error } = await supabase.from('outlets').delete().eq('id', outletId);
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
       if (error) {
         alert(`Error deleting outlet: ${error.message}`);
       } else {
@@ -580,7 +976,11 @@ const App: React.FC = () => {
             minPhotos: item.minPhotos || 0,
             photoSource: item.photoSource || 'live',
             evidenceType: item.evidenceType || 'photo',
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
             // Fields from ChecklistItem
             value: null,
             photoEvidence: [],
@@ -599,6 +999,7 @@ const App: React.FC = () => {
     }
 
     if (newChecklists.length > 0) {
+<<<<<<< HEAD
       let data: any = null;
       let error: any = null;
       try {
@@ -615,6 +1016,11 @@ const App: React.FC = () => {
           data.push(inserted);
         }
       } catch (e: any) { error = e; }
+=======
+      const { data, error } = await (supabase.from('checklists') as any)
+        .insert(newChecklists)
+        .select();
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
       if (error) {
         alert(`Error creating assignments: ${error.message}`);
       } else if (data) {
@@ -625,6 +1031,7 @@ const App: React.FC = () => {
   };
 
   const uploadFile = async (bucket: string, file: Blob | File, fileName: string): Promise<string> => {
+<<<<<<< HEAD
     return await uploadPublic(bucket, file, fileName);
   };
 
@@ -632,6 +1039,23 @@ const App: React.FC = () => {
     let progress = 0;
     const totalSteps = completedChecklist.items.reduce((acc, item) => acc + (item.photoEvidence?.length || 0), 0) + 4; // photos + PDF gen + signature upload + PDF upload + final save
 
+=======
+    const { data, error } = await supabase.storage.from(bucket).upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true,
+    });
+    if (error) {
+        throw new Error(`Storage upload error: ${error.message}`);
+    }
+    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(data.path);
+    return publicUrl;
+  };
+  
+  const handleChecklistSubmit = async (completedChecklist: Checklist) => {
+    let progress = 0;
+    const totalSteps = completedChecklist.items.reduce((acc, item) => acc + (item.photoEvidence?.length || 0), 0) + 4; // photos + PDF gen + signature upload + PDF upload + final save
+    
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     const updateProgress = (message: string) => {
       progress++;
       setSubmissionProgress({ message, progress: (progress / totalSteps) * 100 });
@@ -644,6 +1068,7 @@ const App: React.FC = () => {
       updateProgress("Uploading signature...");
       let signatureUrl = completedChecklist.auditor_signature;
       if (signatureUrl && !signatureUrl.startsWith('http')) {
+<<<<<<< HEAD
         const signatureBlob = base64ToBlob(signatureUrl, 'image/png');
         signatureUrl = await uploadFile('field-ops-photos', signatureBlob, `signatures/${completedChecklist.id}_${Date.now()}.png`);
       }
@@ -651,6 +1076,15 @@ const App: React.FC = () => {
       if (selfieUrl && !selfieUrl.startsWith('http')) {
         const selfieBlob = base64ToBlob(selfieUrl, 'image/jpeg');
         selfieUrl = await uploadFile('field-ops-photos', selfieBlob, `selfies/${completedChecklist.id}_${Date.now()}.jpg`);
+=======
+          const signatureBlob = base64ToBlob(signatureUrl, 'image/png');
+          signatureUrl = await uploadFile('field-ops-photos', signatureBlob, `signatures/${completedChecklist.id}_${Date.now()}.png`);
+      }
+      let selfieUrl = completedChecklist.auditor_selfie;
+      if (selfieUrl && !selfieUrl.startsWith('http')) {
+          const selfieBlob = base64ToBlob(selfieUrl, 'image/jpeg');
+          selfieUrl = await uploadFile('field-ops-photos', selfieBlob, `selfies/${completedChecklist.id}_${Date.now()}.jpg`);
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
       }
 
       // Create a new checklist object with uploaded photo URLs
@@ -667,6 +1101,7 @@ const App: React.FC = () => {
 
       // Upload all photo evidence
       for (const item of checklistForDb.items as ChecklistItem[]) {
+<<<<<<< HEAD
         if (item.photoEvidence && item.photoEvidence.length > 0) {
           const uploadedPhotoUrls: string[] = [];
           for (const photo of item.photoEvidence) {
@@ -685,6 +1120,26 @@ const App: React.FC = () => {
           }
           item.photoEvidence = uploadedPhotoUrls;
         }
+=======
+          if (item.photoEvidence && item.photoEvidence.length > 0) {
+              const uploadedPhotoUrls: string[] = [];
+              for (const photo of item.photoEvidence) {
+                  updateProgress(`Uploading photo for "${item.question.substring(0, 20)}..."`);
+                  // Check if it's already a URL (e.g. from previous edit)
+                  if (photo && !photo.startsWith('http')) {
+                      // Determine mime type based on evidence type
+                      const mimeType = item.evidenceType === 'video' ? 'video/webm' : 'image/jpeg';
+                      const ext = item.evidenceType === 'video' ? 'webm' : 'jpg';
+                      const blob = base64ToBlob(photo, mimeType);
+                      const url = await uploadFile('field-ops-photos', blob, `evidence/${completedChecklist.id}_${item.id}_${Date.now()}.${ext}`);
+                      uploadedPhotoUrls.push(url);
+                  } else if (photo) {
+                      uploadedPhotoUrls.push(photo);
+                  }
+              }
+              item.photoEvidence = uploadedPhotoUrls;
+          }
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
       }
 
       // Generate PDF report (Moved after uploads to ensure links work)
@@ -693,7 +1148,11 @@ const App: React.FC = () => {
 
       // Upload the PDF report
       updateProgress("Uploading PDF report...");
+<<<<<<< HEAD
 
+=======
+      
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
       // Generate filename based on Auditor, Location, and Date
       const auditorName = currentUser?.name?.replace(/\s+/g, '_') || 'Auditor';
       const locationName = checklistForDb.location?.replace(/\s+/g, '_') || 'Location';
@@ -703,6 +1162,7 @@ const App: React.FC = () => {
 
       const reportUrl = await uploadFile('field-ops-reports', pdfBlob, fileName);
       checklistForDb.report_url = reportUrl;
+<<<<<<< HEAD
 
       // Save new findings (tasks) using the final photo URLs
       const newTasks: Omit<Task, 'id' | 'created_at'>[] = [];
@@ -803,6 +1263,110 @@ const App: React.FC = () => {
       alert(`Submission failed: ${errorMessage}`);
     } finally {
       setSubmissionProgress(null);
+=======
+      
+      // Save new findings (tasks) using the final photo URLs
+      const newTasks: Omit<Task, 'id' | 'created_at'>[] = [];
+      for (const item of checklistForDb.items) {
+          if (item.finding) {
+             const { id, ...newTaskData } = item.finding;
+             if (item.photoEvidence && item.photoEvidence.length > 0) {
+                newTaskData.photo = item.photoEvidence[0];
+             }
+             newTasks.push(newTaskData);
+          }
+      }
+
+      if (newTasks.length > 0) {
+          updateProgress("Saving new findings...");
+          const { data: createdTasks, error: taskError } = await (supabase.from('tasks') as any)
+              .insert(newTasks)
+              .select();
+          if (taskError) throw new Error(`Could not save new findings: ${taskError.message}`);
+          if (createdTasks) {
+              setTasks(prev => [...prev, ...createdTasks as Task[]]);
+              // Associate created task IDs back to checklist items
+              createdTasks.forEach((task: Task) => {
+                  const item = checklistForDb.items.find((i: ChecklistItem) => i.id === task.checklist_item_id);
+                  if (item) item.finding_id = task.id;
+              });
+          }
+      }
+      
+      // Finalize and save the checklist data with all new URLs
+      updateProgress("Finalizing checklist data...");
+      const { id, auditor_selfie, ...updateData } = checklistForDb;
+      const { data, error } = await (supabase.from('checklists') as any)
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single();
+      if (error) {
+        throw new Error(`Failed to save checklist: ${error.message}`);
+      }
+      
+      setChecklists(prev => prev.map(c => c.id === id ? data as Checklist : c));
+      
+      // Trigger Email Notification (Non-blocking but feedback aware)
+      let emailStatusMessage = '';
+      if (reportUrl) {
+          updateProgress("Sending report email...");
+          
+          // Fetch additional recipients
+          const { data: recipients } = await (supabase.from('email_recipients') as any).select('email');
+          const recipientEmails = recipients ? recipients.map((r: any) => r.email) : [];
+          
+          // Always include the current user (auditor)
+          if (currentUser?.email && !recipientEmails.includes(currentUser.email)) {
+             recipientEmails.push(currentUser.email);
+          }
+
+          if (recipientEmails.length > 0) {
+            try {
+                const { error: funcError } = await supabase.functions.invoke('send-audit-report', {
+                    body: {
+                        email: recipientEmails, // Now sending an array
+                        auditorName: currentUser?.name || 'Auditor',
+                        location: checklistForDb.location,
+                        date: dateStr,
+                        reportUrl: reportUrl
+                    }
+                });
+                
+                if (funcError) {
+                    console.error("Failed to send email:", funcError);
+                    emailStatusMessage = `\n(Warning: Email notification failed: ${funcError.message || funcError})`;
+                } else {
+                    console.log("Email sent successfully");
+                    emailStatusMessage = `\n(Email notification sent to ${recipientEmails.length} recipient(s))`;
+                }
+            } catch (err: any) {
+                console.error("Email function error:", err);
+                emailStatusMessage = `\n(Warning: Email notification error: ${err.message || err})`;
+            }
+          } else {
+              emailStatusMessage = `\n(No email recipients found)`;
+          }
+      }
+
+      alert(`Checklist submitted successfully!${emailStatusMessage}`);
+      
+      sessionStorage.removeItem(`checklistState_${completedChecklist.id}`);
+      sessionStorage.removeItem(`checklistIndex_${completedChecklist.id}`);
+      
+      handleBackToList();
+    } catch (error: unknown) {
+        console.error("Submission failed:", error);
+        let errorMessage = "An unknown error occurred. Please check the console for details.";
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        } else if (error && typeof error === 'object' && 'message' in (error as any)) {
+            errorMessage = String((error as { message: string }).message);
+        }
+        alert(`Submission failed: ${errorMessage}`);
+    } finally {
+        setSubmissionProgress(null);
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     }
   };
 
@@ -817,6 +1381,7 @@ const App: React.FC = () => {
       .join('\n\n');
 
     const updatePayload = {
+<<<<<<< HEAD
       proof_of_fix: proofUrl,
       status: 'resolved' as 'resolved',
       description: combinedDescription || existing?.description || null,
@@ -839,10 +1404,31 @@ const App: React.FC = () => {
 
     if (data) {
       setTasks(prev => prev.map(t => t.id === taskId ? data as Task : t));
+=======
+        proof_of_fix: proofUrl,
+        status: 'resolved' as 'resolved',
+        description: combinedDescription || existing?.description || null,
+    };
+
+    const { data, error } = await (supabase.from('tasks') as any)
+        .update(updatePayload)
+        .eq('id', taskId)
+        .select()
+        .single();
+
+    if (error) {
+        alert(`Error resolving task: ${error.message}`);
+        throw error;
+    }
+
+    if (data) {
+        setTasks(prev => prev.map(t => t.id === taskId ? data as Task : t));
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     }
   };
 
   const handleUpdateAssignment = async (checklistId: string, updates: Partial<Checklist>) => {
+<<<<<<< HEAD
     let data: any = null;
     let error: any = null;
     try {
@@ -855,6 +1441,13 @@ const App: React.FC = () => {
       data = res.rows[0];
       if (data && typeof data.items === 'string') data.items = JSON.parse(data.items);
     } catch (e: any) { error = e; }
+=======
+    const { data, error } = await (supabase.from('checklists') as any)
+      .update(updates)
+      .eq('id', checklistId)
+      .select()
+      .single();
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     if (error) {
       alert(`Error updating assignment: ${error.message}`);
       throw error;
@@ -865,9 +1458,13 @@ const App: React.FC = () => {
   };
 
   const handleCancelAssignment = async (checklistId: string) => {
+<<<<<<< HEAD
     let error: any = null;
     try { await turso.execute({ sql: 'DELETE FROM checklists WHERE id = ?', args: [checklistId] }); }
     catch (e: any) { error = e; }
+=======
+    const { error } = await supabase.from('checklists').delete().eq('id', checklistId);
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     if (error) {
       alert(`Error canceling assignment: ${error.message}`);
       throw error;
@@ -879,6 +1476,7 @@ const App: React.FC = () => {
   useEffect(() => {
     try {
       localStorage.setItem('lastView', view);
+<<<<<<< HEAD
     } catch { }
   }, [view]);
 
@@ -892,6 +1490,19 @@ const App: React.FC = () => {
       const res = await turso.execute({ sql: 'SELECT * FROM tasks WHERE id = ?', args: [taskId] });
       data = res.rows[0];
     } catch (e: any) { error = e; }
+=======
+    } catch {}
+  }, [view]);
+
+  
+
+  const handleAssignTask = async (taskId: string, assigneeId: string | null) => {
+    const { data, error } = await (supabase.from('tasks') as any)
+      .update({ assigned_to: assigneeId })
+      .eq('id', taskId)
+      .select()
+      .single();
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
 
     if (error) {
       alert(`Error assigning task: ${error.message}`);
@@ -914,7 +1525,11 @@ const App: React.FC = () => {
   if (isLoading && !hasLoaded) {
     return <LoadingSpinner />;
   }
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
   const renderView = () => {
     switch (view) {
       case 'admin_dashboard':
@@ -923,6 +1538,7 @@ const App: React.FC = () => {
         return <AuditorDashboardView user={currentUser} onSelectChecklist={handleSelectChecklist} checklists={checklists} tasks={tasks} users={users} onResolveTask={handleResolveTask} />;
       case 'checklists':
         return selectedChecklist
+<<<<<<< HEAD
           ? <ChecklistView checklist={selectedChecklist} onBack={handleBackToList} onSubmit={handleChecklistSubmit} onLogout={handleLogout} isSubmitting={!!submissionProgress} outlets={outlets} />
           : <LoadingSpinner message="Restoring checklist..." />;
 
@@ -932,6 +1548,17 @@ const App: React.FC = () => {
 
 
 
+=======
+          ? <ChecklistView checklist={selectedChecklist} onBack={handleBackToList} onSubmit={handleChecklistSubmit} onLogout={handleLogout} isSubmitting={!!submissionProgress} />
+          : <LoadingSpinner message="Restoring checklist..." />;
+    
+  
+    
+  
+
+
+  
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
       case 'findings':
         const findingsChecklists = currentUser?.role === Role.Auditor
           ? checklists.filter(c => c.assigned_to === currentUser.id)
@@ -950,8 +1577,13 @@ const App: React.FC = () => {
         return <ReportsView checklists={reportChecklists} users={users} />;
       case 'missed_reports':
         return <MissedReportsView checklists={checklists} users={users} onBack={() => safeSetView('admin_dashboard')} />;
+<<<<<<< HEAD
       case 'whatsapp_config':
         return <WhatsAppConfigView />;
+=======
+      case 'email_config':
+        return <EmailConfigView />;
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
       case 'user_management':
         return <UserManagementView users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />;
       case 'templates':
@@ -964,6 +1596,7 @@ const App: React.FC = () => {
         return <div>Not implemented</div>;
     }
   };
+<<<<<<< HEAD
 
 
 
@@ -974,10 +1607,23 @@ const App: React.FC = () => {
         <ChecklistView checklist={selectedChecklist} onBack={handleBackToList} onSubmit={handleChecklistSubmit} onLogout={handleLogout} isSubmitting={!!submissionProgress} outlets={outlets} />
       </>
     );
+=======
+  
+  
+
+  if (view === 'checklists' && selectedChecklist) {
+      return (
+          <>
+            {submissionProgress && <ProgressOverlay message={submissionProgress.message} progress={submissionProgress.progress} />}
+            <ChecklistView checklist={selectedChecklist} onBack={handleBackToList} onSubmit={handleChecklistSubmit} onLogout={handleLogout} isSubmitting={!!submissionProgress} />
+          </>
+      );
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
   }
 
   return (
     <div className="flex h-screen bg-base-200">
+<<<<<<< HEAD
       {submissionProgress && <ProgressOverlay message={submissionProgress.message} progress={submissionProgress.progress} />}
       <Sidebar
         currentView={view}
@@ -993,6 +1639,23 @@ const App: React.FC = () => {
           {renderView()}
         </main>
       </div>
+=======
+        {submissionProgress && <ProgressOverlay message={submissionProgress.message} progress={submissionProgress.progress} />}
+        <Sidebar
+            currentView={view}
+            setView={safeSetView}
+            isOpen={sidebarOpen}
+            setIsOpen={setSidebarOpen}
+            user={currentUser}
+            onLogout={handleLogout}
+        />
+        <div className="flex-1 flex flex-col overflow-hidden">
+            <Header user={currentUser} onMenuClick={() => setSidebarOpen(true)} onLogout={handleLogout} />
+            <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
+                {renderView()}
+            </main>
+        </div>
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     </div>
   );
 };

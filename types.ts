@@ -85,9 +85,15 @@ export interface Outlet {
   name: string;
   address: string | null;
   manager_id: string | null;
+<<<<<<< HEAD
   latitude?: number | null;
   longitude?: number | null;
   radius?: number | null;
 }
 
 export type View = 'login' | 'admin_dashboard' | 'auditor_dashboard' | 'checklists' | 'findings' | 'user_management' | 'templates' | 'outlet_management' | 'assignments' | 'reports' | 'whatsapp_config' | 'missed_reports';
+=======
+}
+
+export type View = 'login' | 'admin_dashboard' | 'auditor_dashboard' | 'checklists' | 'findings' | 'user_management' | 'templates' | 'outlet_management' | 'assignments' | 'reports' | 'email_config' | 'missed_reports';
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e

@@ -7,7 +7,11 @@ import VideoRecorder from './VideoRecorder';
 import { Capacitor } from '@capacitor/core';
 import { Camera as NativeCam, CameraResultType, CameraSource } from '@capacitor/camera';
 import AIPhotoAnalysis from './AIPhotoAnalysis';
+<<<<<<< HEAD
 import { uploadPublic } from '../../services/storageClient';
+=======
+import { uploadPublic } from '../../services/supabaseClient';
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
 
 interface ChecklistItemProps {
   item: ChecklistItemType;

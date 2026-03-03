@@ -19,9 +19,12 @@ const OutletForm: React.FC<{ outlet?: Outlet | null; users: User[]; onSave: (out
     name: outlet?.name || '',
     address: outlet?.address || '',
     manager_id: outlet?.manager_id || '',
+<<<<<<< HEAD
     latitude: outlet?.latitude?.toString() || '',
     longitude: outlet?.longitude?.toString() || '',
     radius: outlet?.radius?.toString() || '50', // Default 50m
+=======
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -31,6 +34,7 @@ const OutletForm: React.FC<{ outlet?: Outlet | null; users: User[]; onSave: (out
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+<<<<<<< HEAD
     const dataToSave = {
       ...formData,
       manager_id: formData.manager_id || null,
@@ -38,13 +42,20 @@ const OutletForm: React.FC<{ outlet?: Outlet | null; users: User[]; onSave: (out
       longitude: formData.longitude ? parseFloat(formData.longitude) : null,
       radius: formData.radius ? parseFloat(formData.radius) : null,
     };
+=======
+    const dataToSave = { ...formData, manager_id: formData.manager_id || null };
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     if (outlet) {
       onSave({ ...outlet, ...dataToSave });
     } else {
       onSave(dataToSave);
     }
   };
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
@@ -55,6 +66,7 @@ const OutletForm: React.FC<{ outlet?: Outlet | null; users: User[]; onSave: (out
         <label htmlFor="address" className="block text-sm font-medium text-gray-700">Address</label>
         <textarea name="address" id="address" value={formData.address} onChange={handleChange} rows={3} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" />
       </div>
+<<<<<<< HEAD
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="latitude" className="block text-sm font-medium text-gray-700">Latitude</label>
@@ -69,6 +81,8 @@ const OutletForm: React.FC<{ outlet?: Outlet | null; users: User[]; onSave: (out
         <label htmlFor="radius" className="block text-sm font-medium text-gray-700">Radius (Meters) - Default 50m</label>
         <input type="number" name="radius" id="radius" value={formData.radius} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" />
       </div>
+=======
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
       <div>
         <label htmlFor="manager_id" className="block text-sm font-medium text-gray-700">Assigned Manager</label>
         <select name="manager_id" id="manager_id" value={formData.manager_id} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
@@ -76,10 +90,17 @@ const OutletForm: React.FC<{ outlet?: Outlet | null; users: User[]; onSave: (out
           {users.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
         </select>
       </div>
+<<<<<<< HEAD
       <div className="flex justify-end pt-4 space-x-2">
         <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
         <Button type="submit" variant="primary">Save Outlet</Button>
       </div>
+=======
+       <div className="flex justify-end pt-4 space-x-2">
+         <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
+         <Button type="submit" variant="primary">Save Outlet</Button>
+       </div>
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
     </form>
   )
 }
@@ -122,7 +143,10 @@ const OutletManagementView: React.FC<OutletManagementViewProps> = ({ outlets, us
               <tr className="border-b bg-base-200">
                 <th className="p-3">Outlet Name</th>
                 <th className="p-3">Address</th>
+<<<<<<< HEAD
                 <th className="p-3 hidden md:table-cell">Geofence</th>
+=======
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
                 <th className="p-3">Manager</th>
                 <th className="p-3">Actions</th>
               </tr>
@@ -131,6 +155,7 @@ const OutletManagementView: React.FC<OutletManagementViewProps> = ({ outlets, us
               {outlets.map(outlet => {
                 const manager = outlet.manager_id ? userMap.get(outlet.manager_id) : null;
                 return (
+<<<<<<< HEAD
                   <tr key={outlet.id} className="border-b hover:bg-base-200">
                     <td className="p-3 font-semibold">
                       <div className="flex items-center">
@@ -165,6 +190,35 @@ const OutletManagementView: React.FC<OutletManagementViewProps> = ({ outlets, us
                       </div>
                     </td>
                   </tr>
+=======
+                    <tr key={outlet.id} className="border-b hover:bg-base-200">
+                    <td className="p-3 font-semibold">
+                        <div className="flex items-center">
+                            <Store className="w-5 h-5 mr-3 text-primary"/>
+                            {outlet.name}
+                        </div>
+                    </td>
+                    <td className="p-3 text-gray-600">{outlet.address}</td>
+                    <td className="p-3">
+                        {manager ? (
+                            <div className="flex items-center">
+                                <Avatar user={manager} className="w-8 h-8 mr-2" />
+                                <div>
+                                    <div className="font-medium text-sm">{manager.name}</div>
+                                </div>
+                            </div>
+                        ) : (
+                            <span className="text-gray-400 italic text-sm">Unassigned</span>
+                        )}
+                    </td>
+                    <td className="p-3 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                            <button onClick={() => handleOpenModal(outlet)} className="p-2 text-gray-500 hover:text-primary rounded-full hover:bg-blue-100"><Edit size={18} /></button>
+                            <button onClick={() => onDeleteOutlet(outlet.id)} className="p-2 text-gray-500 hover:text-error rounded-full hover:bg-red-100"><Trash2 size={18} /></button>
+                        </div>
+                    </td>
+                    </tr>
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
                 );
               })}
             </tbody>

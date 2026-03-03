@@ -14,7 +14,11 @@ interface SidebarProps {
 }
 
 // IMPORTANT: See README for instructions on updating this URL.
+<<<<<<< HEAD
 const LOGO_URL = "https://pub-bc5cd7b3f4094a7aa7797b4a64ad9295.r2.dev/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1%20(1).jpg";
+=======
+const LOGO_URL = "https://xkzmddgcwcqvhicdqrpa.supabase.co/storage/v1/object/public/field-ops-photos/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1%20(1).jpg";
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
 
 const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void }> = ({ icon, label, isActive, onClick }) => {
   return (
@@ -43,7 +47,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
             { id: 'user_management' as View, label: 'User Management', icon: <Users size={20} />, roles: [Role.Admin] },
             { id: 'outlet_management' as View, label: 'Outlet Management', icon: <Store size={20} />, roles: [Role.Admin] },
             { id: 'templates' as View, label: 'Templates', icon: <FileText size={20} />, roles: [Role.Admin] },
+<<<<<<< HEAD
             { id: 'whatsapp_config' as View, label: 'WhatsApp Config', icon: <Settings size={20} />, roles: [Role.Admin] },
+=======
+>>>>>>> bd9385129ab1c480e30ca505e99ba989ef60675e
         ];
         return allItems.filter(item => item.roles.includes(role));
     }
