@@ -83,43 +83,55 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         const { fileName, contentType, bodyBase64, bucket } = req.body;
 
         if (!fileName || !bodyBase64 || !bucket) {
+            console.error('[Upload] Missing required fields:', { fileName: !!fileName, bodyBase64: !!bodyBase64, bucket: !!bucket });
             return res.status(400).json({ error: 'Missing fileName, bucket, or file data' });
         }
 
+        console.log('[Upload] Request received:', { fileName, bucket, contentTypeLength: contentType?.length, base64Length: bodyBase64.length });
+
         // Decode base64 to bytes
-        const binaryString = atob(bodyBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
+        try {
+            const binaryString = atob(bodyBase64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            const endpoint = `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${fileName}`;
+
+            console.log(`[Upload] Uploading to R2: ${endpoint} (size: ${bytes.length} bytes)`);
+
+            const headers: Record<string, string> = {
+                'content-type': contentType || 'application/octet-stream',
+            };
+
+            const signedHeaders = await signRequest('PUT', endpoint, headers, bytes);
+
+            console.log('[Upload] Headers signed, sending to R2...');
+
+            const uploadResponse = await fetch(endpoint, {
+                method: 'PUT',
+                headers: signedHeaders,
+                body: bytes,
+            });
+
+            console.log(`[Upload] R2 response status: ${uploadResponse.status}`);
+
+            if (!uploadResponse.ok) {
+                const errorText = await uploadResponse.text();
+                console.error(`[Upload] R2 upload failed (${uploadResponse.status}):`, errorText);
+                return res.status(uploadResponse.status).json({ error: `R2 upload failed: ${errorText}` });
+            }
+
+            const base = publicUrlBase.endsWith('/') ? publicUrlBase.slice(0, -1) : publicUrlBase;
+            const publicUrl = `${base}/${fileName}`;
+
+            console.log(`[Upload] Success! URL: ${publicUrl}`);
+            return res.status(200).json({ url: publicUrl });
+        } catch (innerError: any) {
+            console.error('[Upload] Base64 decoding or signing error:', innerError);
+            throw innerError;
         }
-
-        const endpoint = `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${fileName}`;
-
-        console.log(`[Upload] Uploading to R2: ${endpoint} (size: ${bytes.length} bytes)`);
-
-        const headers: Record<string, string> = {
-            'content-type': contentType || 'application/octet-stream',
-        };
-
-        const signedHeaders = await signRequest('PUT', endpoint, headers, bytes);
-
-        const uploadResponse = await fetch(endpoint, {
-            method: 'PUT',
-            headers: signedHeaders,
-            body: bytes,
-        });
-
-        if (!uploadResponse.ok) {
-            const errorText = await uploadResponse.text();
-            console.error(`[Upload] R2 upload failed (${uploadResponse.status}):`, errorText);
-            return res.status(uploadResponse.status).json({ error: `R2 upload failed: ${errorText}` });
-        }
-
-        const base = publicUrlBase.endsWith('/') ? publicUrlBase.slice(0, -1) : publicUrlBase;
-        const publicUrl = `${base}/${fileName}`;
-
-        console.log(`[Upload] Success: ${publicUrl}`);
-        return res.status(200).json({ url: publicUrl });
     } catch (error: any) {
         console.error('[Upload] Error:', error);
         return res.status(500).json({ error: error?.message || 'Upload failed' });
