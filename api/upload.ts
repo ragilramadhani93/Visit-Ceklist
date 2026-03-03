@@ -95,7 +95,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
         const endpoint = `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${fileName}`;
 
-        console.log(`[Upload] Uploading to R2: ${endpoint}`);
+        console.log(`[Upload] Uploading to R2: ${endpoint} (size: ${bytes.length} bytes)`);
 
         const headers: Record<string, string> = {
             'content-type': contentType || 'application/octet-stream',

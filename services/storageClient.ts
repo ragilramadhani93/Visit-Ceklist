@@ -6,13 +6,25 @@ const bucketName = (import.meta as any).env?.VITE_R2_BUCKET_NAME as string | und
 
 // Note: R2 uploads are now handled server-side via /api/upload endpoint to bypass CORS issues
 
+// Efficient base64 encoding that handles large files without call stack overflow
+function bufferToBase64(buffer: Uint8Array): string {
+    const CHUNK_SIZE = 32768; // 32KB chunks
+    let result = '';
+    for (let i = 0; i < buffer.length; i += CHUNK_SIZE) {
+        const chunk = buffer.subarray(i, Math.min(i + CHUNK_SIZE, buffer.length));
+        result += String.fromCharCode.apply(null, Array.from(chunk) as any);
+    }
+    return btoa(result);
+}
+
 export const uploadPublic = async (_bucket: string, file: Blob | File, fileName: string): Promise<string> => {
     try {
-        // Convert file to base64 for transmission
+        console.log(`[Storage] Starting upload: ${fileName} (${file.size} bytes)`);
+
+        // Convert file to base64 for transmission - uses chunked encoding for large files
         const arrayBuffer = await file.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
-        const binaryString = String.fromCharCode.apply(null, Array.from(bytes));
-        const bodyBase64 = btoa(binaryString);
+        const bodyBase64 = bufferToBase64(bytes);
 
         // Upload via Vercel API route (server-side) to avoid CORS issues
         const uploadResponse = await fetch('/api/upload', {
