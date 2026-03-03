@@ -103,19 +103,29 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
         'content-type': contentType,
     };
 
-    const signedHeaders = await signRequest('PUT', endpoint, headers, body);
+    try {
+        const signedHeaders = await signRequest('PUT', endpoint, headers, body);
 
-    const response = await fetch(endpoint, {
-        method: 'PUT',
-        headers: signedHeaders,
-        body: body,
-    });
+        const response = await fetch(endpoint, {
+            method: 'PUT',
+            headers: signedHeaders,
+            body: body,
+            mode: 'cors',
+        });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Photo upload failed (HTTP ${response.status}): ${errorText}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        const base = publicUrlBase.endsWith('/') ? publicUrlBase.slice(0, -1) : publicUrlBase;
+        return `${base}/${fileName}`;
+    } catch (error: any) {
+        // Diagnose the error
+        if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            // CORS or network error
+            throw new Error(`Photo upload blocked - likely CORS issue with R2. Check that R2 bucket CORS is configured to allow cross-origin requests from ${window.location.origin}`);
+        }
+        throw new Error(`Photo upload error: ${error?.message || String(error)}`);
     }
-
-    const base = publicUrlBase.endsWith('/') ? publicUrlBase.slice(0, -1) : publicUrlBase;
-    return `${base}/${fileName}`;
 };
