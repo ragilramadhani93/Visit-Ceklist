@@ -14,7 +14,7 @@ interface SidebarProps {
 }
 
 // IMPORTANT: See README for instructions on updating this URL.
-const LOGO_URL = "https://pub-bc5cd7b3f4094a7aa7797b4a64ad9295.r2.dev/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1%20(1).jpg";
+const LOGO_URL = (import.meta as any).env?.VITE_LOGO_URL || "https://pub-9d01db2ebda64069a7e7fd1f530e753e.r2.dev/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1%20(1).jpg";
 
 const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void }> = ({ icon, label, isActive, onClick }) => {
   return (

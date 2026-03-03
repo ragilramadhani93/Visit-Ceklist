@@ -7,7 +7,7 @@ import VideoRecorder from './VideoRecorder';
 import { Capacitor } from '@capacitor/core';
 import { Camera as NativeCam, CameraResultType, CameraSource } from '@capacitor/camera';
 import AIPhotoAnalysis from './AIPhotoAnalysis';
-import { uploadPublic } from '../../services/storageClient';
+import { uploadPublic, normalizeR2Url } from '../../services/storageClient';
 
 interface ChecklistItemProps {
   item: ChecklistItemType;
@@ -26,8 +26,9 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
     const newPreviews = photoSources.map(source => {
       if (source.startsWith('http')) {
         // It's an already uploaded URL that is safe to use.
-        console.log('[Preview] Using HTTP URL:', source);
-        return source;
+        const normalized = normalizeR2Url(source);
+        console.log('[Preview] Using HTTP URL:', normalized);
+        return normalized;
       }
       if (source.startsWith('data:')) {
         console.log('[Preview] Using data URL');

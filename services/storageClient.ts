@@ -6,6 +6,17 @@ const bucketName = (import.meta as any).env?.VITE_R2_BUCKET_NAME as string | und
 
 // Note: R2 uploads are now handled server-side via /api/upload endpoint to bypass CORS issues
 
+// Normalize old R2 public URL to new URL (migrates DB-stored URLs automatically)
+const OLD_R2_BASE = 'https://pub-bc5cd7b3f4094a7aa7797b4a64ad9295.r2.dev';
+const NEW_R2_BASE = 'https://pub-9d01db2ebda64069a7e7fd1f530e753e.r2.dev';
+
+export function normalizeR2Url(url: string): string {
+    if (url.startsWith(OLD_R2_BASE)) {
+        return NEW_R2_BASE + url.slice(OLD_R2_BASE.length);
+    }
+    return url;
+}
+
 // Efficient base64 encoding that handles large files without call stack overflow
 function bufferToBase64(buffer: Uint8Array): string {
     const CHUNK_SIZE = 4096; // Small chunks to avoid apply() overflow
@@ -26,6 +37,18 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
     try {
         console.log(`[Storage] Starting upload: ${fileName} (${file.size} bytes)`);
 
+        // Use explicit bucket param if provided, otherwise fall back to VITE_R2_BUCKET_NAME
+        const bucket = _bucket || bucketName;
+        if (!bucket) {
+            throw new Error('No R2 bucket specified. Provide a bucket param or set VITE_R2_BUCKET_NAME in env.');
+        }
+
+        if (!publicUrlBase) {
+            console.warn('[Storage] VITE_R2_PUBLIC_URL is not set; uploaded file URL may be incorrect.');
+        }
+
+        console.log(`[Storage] Using bucket: ${bucket}, publicUrlBase: ${publicUrlBase || 'undefined'}`);
+
         // Convert file to base64 for transmission - uses safe loop encoding for large files
         const arrayBuffer = await file.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
@@ -43,7 +66,7 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
             },
             body: JSON.stringify({
                 fileName,
-                bucket: _bucket,
+                bucket,
                 contentType: file.type || 'application/octet-stream',
                 bodyBase64,
             }),

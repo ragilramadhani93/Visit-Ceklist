@@ -24,7 +24,7 @@ import { generateAuditReportPDF } from './services/pdfService';
 import ProgressOverlay from './components/shared/ProgressOverlay';
 import { SignIn, useUser, useClerk } from '@clerk/clerk-react';
 
-const LOGO_URL = (import.meta as any).env?.VITE_LOGO_URL || "https://pub-bc5cd7b3f4094a7aa7797b4a64ad9295.r2.dev/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1%20(1).jpg";
+const LOGO_URL = (import.meta as any).env?.VITE_LOGO_URL || "https://pub-9d01db2ebda64069a7e7fd1f530e753e.r2.dev/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1%20(1).jpg";
 
 console.log('[DEBUG] App.tsx module loaded successfully');
 
