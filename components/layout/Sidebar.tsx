@@ -1,6 +1,6 @@
 ﻿
 
-import React from 'react';
+import React, { useState } from 'react';
 import { LayoutDashboard, CheckSquare, ClipboardList, BarChart3, Settings, LogOut, X, Users, FileText, Store, ClipboardPlus } from 'lucide-react';
 import { View, User, Role } from '../../types';
 
@@ -14,7 +14,7 @@ interface SidebarProps {
 }
 
 // IMPORTANT: See README for instructions on updating this URL.
-const LOGO_URL = (import.meta as any).env?.VITE_LOGO_URL || "https://pub-9d01db2ebda64069a7e7fd1f530e753e.r2.dev/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1__1_-removebg-preview%20%281%29.png";
+const LOGO_URL = (import.meta as any).env?.VITE_LOGO_URL || "https://pub-9d01db2ebda64069a7e7fd1f530e753e.r2.dev/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1__1_-removebg-preview%20(1).png";
 
 const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void }> = ({ icon, label, isActive, onClick }) => {
   return (
@@ -32,7 +32,10 @@ const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolea
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOpen, user, onLogout }) => {
-    
+    const [logoSrc, setLogoSrc] = useState<string>(LOGO_URL);
+    const [sanitizedTried, setSanitizedTried] = useState(false);
+    const sanitizeUrl = (url: string) => url.replace(/\(/g, '%28').replace(/\)/g, '%29');
+
     const getNavItems = (role: Role) => {
         const allItems = [
             { id: 'admin_dashboard' as View, label: 'Admin Dashboard', icon: <LayoutDashboard size={20} />, roles: [Role.Admin] },
@@ -60,7 +63,23 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
         <div className={`fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsOpen(false)}></div>
         <aside className={`absolute lg:relative flex flex-col w-64 bg-base-100 shadow-lg h-full z-30 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out`}>
             <div className="flex items-center justify-between p-4 border-b border-base-300">
-                <img src={LOGO_URL} alt="Kapal Api Logo" className="h-12 w-auto" />
+                {logoSrc ? (
+                    <img
+                        src={logoSrc}
+                        alt="Kapal Api Logo"
+                        className="h-12 w-auto"
+                        onError={() => {
+                            if (!sanitizedTried) {
+                                setSanitizedTried(true);
+                                setLogoSrc(sanitizeUrl(logoSrc));
+                            } else {
+                                setLogoSrc('');
+                            }
+                        }}
+                    />
+                ) : (
+                    <span className="font-bold text-neutral text-sm">Opsify</span>
+                )}
                  <button onClick={() => setIsOpen(false)} className="lg:hidden text-gray-500">
                     <X size={24} />
                 </button>
