@@ -1,5 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+// Increase Vercel's default 4.5MB body size limit to handle large photo/PDF uploads
+export const config = {
+    api: {
+        bodyParser: {
+            sizeLimit: '20mb',
+        },
+    },
+};
+
 const accountId = process.env.VITE_R2_ACCOUNT_ID;
 const accessKeyId = process.env.VITE_R2_ACCESS_KEY_ID;
 const secretAccessKey = process.env.VITE_R2_SECRET_ACCESS_KEY;
