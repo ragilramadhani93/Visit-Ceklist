@@ -17,27 +17,10 @@ export function normalizeR2Url(url: string): string {
     return url;
 }
 
-// Efficient base64 encoding that handles large files without call stack overflow
-function bufferToBase64(buffer: Uint8Array): string {
-    const CHUNK_SIZE = 4096; // Small chunks to avoid apply() overflow
-    let result = '';
-    
-    for (let i = 0; i < buffer.length; i += CHUNK_SIZE) {
-        const chunk = buffer.subarray(i, Math.min(i + CHUNK_SIZE, buffer.length));
-        // Use a loop instead of apply() to avoid call stack overflow
-        for (let j = 0; j < chunk.length; j++) {
-            result += String.fromCharCode(chunk[j]);
-        }
-    }
-    
-    return btoa(result);
-}
-
 export const uploadPublic = async (_bucket: string, file: Blob | File, fileName: string): Promise<string> => {
     try {
         console.log(`[Storage] Starting upload: ${fileName} (${file.size} bytes)`);
 
-        // Use explicit bucket param if provided, otherwise fall back to VITE_R2_BUCKET_NAME
         const bucket = _bucket || bucketName;
         if (!bucket) {
             throw new Error('No R2 bucket specified. Provide a bucket param or set VITE_R2_BUCKET_NAME in env.');
@@ -49,27 +32,18 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
 
         console.log(`[Storage] Using bucket: ${bucket}, publicUrlBase: ${publicUrlBase || 'undefined'}`);
 
-        // Convert file to base64 for transmission - uses safe loop encoding for large files
-        const arrayBuffer = await file.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        
-        console.log(`[Storage] Converting to base64... (${bytes.length} bytes)`);
-        const bodyBase64 = bufferToBase64(bytes);
-        
-        console.log(`[Storage] Base64 encoded (${bodyBase64.length} bytes). Uploading...`);
+        // Send file as raw binary (no base64 encoding) - avoids 33% overhead and Vercel 4.5MB JSON limit
+        const contentType = file.type || 'application/octet-stream';
+        const params = new URLSearchParams({ fileName, bucket, contentType });
 
-        // Upload via Vercel API route (server-side) to avoid CORS issues
-        const uploadResponse = await fetch('/api/upload', {
+        console.log(`[Storage] Uploading binary (${file.size} bytes)...`);
+
+        const uploadResponse = await fetch(`/api/upload?${params.toString()}`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': contentType,
             },
-            body: JSON.stringify({
-                fileName,
-                bucket,
-                contentType: file.type || 'application/octet-stream',
-                bodyBase64,
-            }),
+            body: file,
         });
 
         if (!uploadResponse.ok) {
