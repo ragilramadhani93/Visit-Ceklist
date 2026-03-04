@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, RefreshCw, Zap, ZapOff, ZoomIn, ZoomOut } from 'lucide-react';
+import { Camera, RefreshCw, Zap, ZapOff, ZoomIn, ZoomOut, Upload } from 'lucide-react';
 
 interface SelfieCaptureProps {
   onCancel: () => void;
@@ -11,9 +11,11 @@ interface SelfieCaptureProps {
 const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCancel, onCapture, initialFacingMode = 'user' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [ready, setReady] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>(initialFacingMode);
   const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<string | null>(null);
 
   // Camera capabilities state
   const [supportsFlash, setSupportsFlash] = useState(false);
@@ -110,7 +112,16 @@ const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCancel, onCapture, init
         }
       } catch (e: any) {
         console.error("Error accessing camera:", e);
-        setError(e.message || "Could not access camera");
+        setErrorType(e.name || '');
+        if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+          setError('Kamera tidak ditemukan. Pastikan perangkat memiliki kamera dan izin telah diberikan, atau gunakan tombol "Upload dari Galeri" di bawah.');
+        } else if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+          setError('Akses kamera ditolak. Silakan izinkan akses kamera di pengaturan browser.');
+        } else if (e.name === 'NotReadableError') {
+          setError('Kamera sedang digunakan oleh aplikasi lain. Tutup aplikasi lain dan coba lagi.');
+        } else {
+          setError(e.message || 'Tidak dapat mengakses kamera.');
+        }
       }
     };
     start();
@@ -156,10 +167,38 @@ const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCancel, onCapture, init
     <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex flex-col">
       <div className="flex-1 flex items-center justify-center relative overflow-hidden bg-black">
         {error ? (
-          <div className="text-white text-center p-6">
+          <div className="text-white text-center p-6 max-w-sm">
             <p className="text-red-500 mb-4 text-xl font-bold">Camera Error</p>
-            <p className="mb-4">{error}</p>
-            <button onClick={onCancel} className="px-4 py-2 bg-white text-black rounded-full">Close</button>
+            <p className="mb-6 text-sm leading-relaxed">{error}</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    fetch(reader.result as string)
+                      .then(r => r.blob())
+                      .then(blob => onCapture(blob));
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }}
+            />
+            <div className="flex flex-col gap-3">
+              {(errorType === 'NotFoundError' || errorType === 'DevicesNotFoundError' || errorType === 'NotAllowedError' || errorType === 'PermissionDeniedError') && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 bg-primary text-white rounded-full flex items-center justify-center gap-2"
+                >
+                  <Upload size={16} /> Upload dari Galeri
+                </button>
+              )}
+              <button onClick={onCancel} className="px-4 py-2 bg-white text-black rounded-full">Tutup</button>
+            </div>
           </div>
         ) : (
           <>
