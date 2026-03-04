@@ -287,53 +287,51 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
         {previews.length > 0 && (
             <div className="mt-2 grid grid-cols-3 gap-2">
                 {previews.map((previewSrc, index) => (
-                    loadedPreviews.has(index) ? (
                     <div key={index} className="relative group w-full aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                        {!loadedPreviews.has(index) && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-gray-200 rounded-lg z-10">
+                                <div className="text-center">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-400 border-t-primary mx-auto mb-1"></div>
+                                    <span className="text-xs text-gray-500">Loading...</span>
+                                </div>
+                            </div>
+                        )}
                         {isVideo ? (
-                            <video 
-                                src={previewSrc} 
-                                className="w-full h-full object-cover rounded-lg shadow-md" 
+                            <video
+                                src={previewSrc}
+                                className="w-full h-full object-cover rounded-lg shadow-md"
                                 controls
                                 playsInline
                                 muted
-                                preload="none"
+                                preload="metadata"
+                                onLoadedMetadata={() => setLoadedPreviews(prev => new Set(prev).add(index))}
                                 onError={() => console.error('[Video Preview] Failed to load:', previewSrc)}
                             />
                         ) : (
-                            <img 
-                                src={previewSrc} 
-                                alt={`Preview ${index + 1}`} 
-                                className="w-full h-full object-cover rounded-lg shadow-md" 
-                                onError={() => {
-                                  console.error('[Image Preview] Failed to load:', previewSrc);
-                                  setLoadedPreviews(prev => {
-                                    const newSet = new Set(prev);
-                                    newSet.delete(index);
-                                    return newSet;
-                                  });
-                                }}
+                            <img
+                                src={previewSrc}
+                                alt={`Preview ${index + 1}`}
+                                className="w-full h-full object-cover rounded-lg shadow-md"
                                 onLoad={() => {
-                                  console.log('[Image Preview] Loaded successfully:', previewSrc);
-                                  setLoadedPreviews(prev => new Set(prev).add(index));
+                                    console.log('[Image Preview] Loaded successfully:', previewSrc);
+                                    setLoadedPreviews(prev => new Set(prev).add(index));
+                                }}
+                                onError={() => {
+                                    console.error('[Image Preview] Failed to load:', previewSrc);
+                                    setLoadedPreviews(prev => new Set(prev).add(index));
                                 }}
                             />
                         )}
-                        <button 
-                            onClick={() => removePhoto(index)} 
-                            className="absolute top-1 right-1 bg-black bg-opacity-60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
-                            aria-label={`Remove ${isVideo ? 'video' : 'photo'} ${index + 1}`}
-                        >
-                            <X size={16} />
-                        </button>
+                        {loadedPreviews.has(index) && (
+                            <button
+                                onClick={() => removePhoto(index)}
+                                className="absolute top-1 right-1 bg-black bg-opacity-60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
+                                aria-label={`Remove ${isVideo ? 'video' : 'photo'} ${index + 1}`}
+                            >
+                                <X size={16} />
+                            </button>
+                        )}
                     </div>
-                    ) : (
-                    <div key={index} className="relative w-full aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
-                        <div className="text-center">
-                            <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-400 border-t-primary mx-auto mb-1"></div>
-                            <span className="text-xs text-gray-500">Loading...</span>
-                        </div>
-                    </div>
-                    )
                 ))}
             </div>
         )}
