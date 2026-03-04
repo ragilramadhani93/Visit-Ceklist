@@ -1,11 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Disable bodyParser so we receive the raw binary stream directly.
-// This bypasses Vercel's 4.5MB JSON body limit - binary files are up to ~100MB on Pro,
-// and more importantly don't have the 33% base64 overhead on Free plan.
+// This endpoint now only generates a presigned URL for direct R2 upload.
+// The client uploads the file directly to R2, completely bypassing Vercel's 4.5MB body limit.
 export const config = {
     api: {
-        bodyParser: false,
+        bodyParser: true,
     },
 };
 
@@ -13,6 +12,110 @@ const accountId = process.env.VITE_R2_ACCOUNT_ID;
 const accessKeyId = process.env.VITE_R2_ACCESS_KEY_ID;
 const secretAccessKey = process.env.VITE_R2_SECRET_ACCESS_KEY;
 const publicUrlBase = process.env.VITE_R2_PUBLIC_URL;
+
+async function hmacSha256(key: ArrayBuffer | Uint8Array, message: string): Promise<ArrayBuffer> {
+    const cryptoKey = await crypto.subtle.importKey('raw', key as ArrayBuffer, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    return crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(message));
+}
+
+async function sha256(data: Uint8Array | ArrayBuffer | string): Promise<string> {
+    const input = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+    const hash = await crypto.subtle.digest('SHA-256', input as ArrayBuffer);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function getSignatureKey(key: string, dateStamp: string, region: string, service: string): Promise<ArrayBuffer> {
+    let kDate = await hmacSha256(new TextEncoder().encode('AWS4' + key).buffer as ArrayBuffer, dateStamp);
+    let kRegion = await hmacSha256(kDate, region);
+    let kService = await hmacSha256(kRegion, service);
+    let kSigning = await hmacSha256(kService, 'aws4_request');
+    return kSigning;
+}
+
+function toHex(buffer: ArrayBuffer): string {
+    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function generatePresignedUrl(bucket: string, fileName: string, contentType: string, expiresIn = 3600): Promise<string> {
+    const region = 'auto';
+    const service = 's3';
+    const now = new Date();
+    const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const dateStamp = amzDate.substring(0, 8);
+
+    const host = `${accountId}.r2.cloudflarestorage.com`;
+    const endpoint = `https://${host}/${bucket}/${fileName}`;
+    const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+    const credential = `${accessKeyId}/${credentialScope}`;
+
+    // Query params must be sorted
+    const queryParams = new URLSearchParams({
+        'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+        'X-Amz-Credential': credential,
+        'X-Amz-Date': amzDate,
+        'X-Amz-Expires': String(expiresIn),
+        'X-Amz-SignedHeaders': 'content-type;host',
+    });
+    // Sort alphabetically
+    const sortedQuery = Array.from(queryParams.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join('&');
+
+    const canonicalHeaders = `content-type:${contentType}\nhost:${host}\n`;
+    const signedHeaders = 'content-type;host';
+
+    const canonicalRequest = [
+        'PUT',
+        `/${bucket}/${fileName}`,
+        sortedQuery,
+        canonicalHeaders,
+        signedHeaders,
+        'UNSIGNED-PAYLOAD',
+    ].join('\n');
+
+    const canonicalRequestHash = await sha256(canonicalRequest);
+    const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${canonicalRequestHash}`;
+
+    const signingKey = await getSignatureKey(secretAccessKey!, dateStamp, region, service);
+    const signature = toHex(await hmacSha256(signingKey, stringToSign));
+
+    return `${endpoint}?${sortedQuery}&X-Amz-Signature=${signature}`;
+}
+
+export default async (req: VercelRequest, res: VercelResponse) => {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    if (!accountId || !accessKeyId || !secretAccessKey || !publicUrlBase) {
+        console.error('Missing R2 configuration');
+        return res.status(500).json({ error: 'R2 configuration incomplete on server' });
+    }
+
+    try {
+        const { fileName, bucket, contentType } = req.body;
+
+        if (!fileName || !bucket) {
+            return res.status(400).json({ error: 'Missing fileName or bucket' });
+        }
+
+        const resolvedContentType = contentType || 'application/octet-stream';
+        console.log(`[Upload] Generating presigned URL for: ${bucket}/${fileName}`);
+
+        const presignedUrl = await generatePresignedUrl(bucket, fileName, resolvedContentType);
+
+        const base = publicUrlBase.endsWith('/') ? publicUrlBase.slice(0, -1) : publicUrlBase;
+        const publicUrl = `${base}/${fileName}`;
+
+        console.log(`[Upload] Presigned URL generated. Public URL will be: ${publicUrl}`);
+        return res.status(200).json({ presignedUrl, publicUrl });
+    } catch (error: any) {
+        console.error('[Upload] Error:', error);
+        return res.status(500).json({ error: error?.message || 'Failed to generate presigned URL' });
+    }
+};
+
 
 async function hmacSha256(key: ArrayBuffer | Uint8Array, message: string): Promise<ArrayBuffer> {
     const cryptoKey = await crypto.subtle.importKey('raw', key as ArrayBuffer, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);

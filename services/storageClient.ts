@@ -30,30 +30,38 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
             console.warn('[Storage] VITE_R2_PUBLIC_URL is not set; uploaded file URL may be incorrect.');
         }
 
-        console.log(`[Storage] Using bucket: ${bucket}, publicUrlBase: ${publicUrlBase || 'undefined'}`);
-
-        // Send file as raw binary (no base64 encoding) - avoids 33% overhead and Vercel 4.5MB JSON limit
         const contentType = file.type || 'application/octet-stream';
-        const params = new URLSearchParams({ fileName, bucket, contentType });
 
-        console.log(`[Storage] Uploading binary (${file.size} bytes)...`);
-
-        const uploadResponse = await fetch(`/api/upload?${params.toString()}`, {
+        // Step 1: Get presigned URL from server (tiny JSON request, no file data)
+        console.log(`[Storage] Requesting presigned URL for ${bucket}/${fileName}...`);
+        const presignResponse = await fetch('/api/upload', {
             method: 'POST',
-            headers: {
-                'Content-Type': contentType,
-            },
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName, bucket, contentType }),
+        });
+
+        if (!presignResponse.ok) {
+            const errorData = await presignResponse.json().catch(() => ({}));
+            throw new Error(errorData.error || `Failed to get presigned URL (HTTP ${presignResponse.status})`);
+        }
+
+        const { presignedUrl, publicUrl } = await presignResponse.json();
+
+        // Step 2: Upload file DIRECTLY to R2 (bypasses Vercel completely - no size limit)
+        console.log(`[Storage] Uploading ${file.size} bytes directly to R2...`);
+        const uploadResponse = await fetch(presignedUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': contentType },
             body: file,
         });
 
         if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json().catch(() => ({}));
-            throw new Error(errorData.error || `Upload failed (HTTP ${uploadResponse.status})`);
+            const errText = await uploadResponse.text();
+            throw new Error(`Direct R2 upload failed (HTTP ${uploadResponse.status}): ${errText}`);
         }
 
-        const result = await uploadResponse.json();
-        console.log('[Storage] Upload successful, URL:', result.url);
-        return result.url;
+        console.log('[Storage] Upload successful, URL:', publicUrl);
+        return publicUrl;
     } catch (error: any) {
         console.error('[Storage] Upload error:', error);
         throw new Error(`Photo upload failed: ${error?.message || String(error)}`);
