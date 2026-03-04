@@ -31,6 +31,30 @@ const getImageAsDataURI = async (source: string, mimeType: string = 'image/jpeg'
     }
 };
 
+// Fetches and resizes an image to small dimensions for PDF embedding.
+// This keeps the PDF file size small enough to upload (under Vercel's 4.5MB limit).
+const getResizedImageForPDF = async (source: string, maxPx = 300, quality = 0.5): Promise<string | null> => {
+    const dataUri = await getImageAsDataURI(source, 'image/jpeg');
+    if (!dataUri) return null;
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const ratio = Math.min(maxPx / img.width, maxPx / img.height, 1);
+            const w = Math.round(img.width * ratio);
+            const h = Math.round(img.height * ratio);
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) { resolve(dataUri); return; }
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(dataUri);
+        img.src = dataUri;
+    });
+};
+
 
 export const generateAuditReportPDF = async (
     checklist: Checklist,
@@ -91,12 +115,12 @@ export const generateAuditReportPDF = async (
         if (!item) return [];
         if (item.evidenceType === 'video') {
             if (imageOverrides && imageOverrides[item.id]) {
-                const uri = await getImageAsDataURI(imageOverrides[item.id]);
+                const uri = await getResizedImageForPDF(imageOverrides[item.id]);
                 return uri ? [uri] : [];
             }
             return [];
         }
-        return Promise.all((item.photoEvidence || []).map(photoSrc => getImageAsDataURI(photoSrc || '', 'image/jpeg')));
+        return Promise.all((item.photoEvidence || []).map(photoSrc => getResizedImageForPDF(photoSrc || '')));
       })
     );
 
@@ -243,7 +267,7 @@ export const generateAuditReportPDF = async (
         yPos += 50;
     }
 
-    const selfieDataURI = await getImageAsDataURI(checklist.auditor_selfie || '', 'image/jpeg');
+    const selfieDataURI = await getResizedImageForPDF(checklist.auditor_selfie || '', 200, 0.6);
     if (selfieDataURI) {
         if (yPos > pageHeight - 80) {
             doc.addPage();
@@ -290,8 +314,8 @@ export const generateFindingsReportPDF = async (
 
   const images = await Promise.all(
     findings.map(f => Promise.all([
-      getImageAsDataURI(f.photo || '', 'image/jpeg'),
-      getImageAsDataURI(f.proof_of_fix || '', 'image/jpeg')
+      getResizedImageForPDF(f.photo || ''),
+      getResizedImageForPDF(f.proof_of_fix || '')
     ]))
   );
 

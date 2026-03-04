@@ -372,7 +372,7 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
         {cameraOpen && (
           <SelfieCapture onCancel={() => setCameraOpen(false)} onCapture={async (blob) => {
             try {
-              const resized = await resizeImage(blob, 1600, 1600, 0.8);
+              const resized = await resizeImage(blob, 800, 800, 0.6);
               const b64 = await blobToBase64(resized);
               setSelfie(b64);
             } catch (e) {
