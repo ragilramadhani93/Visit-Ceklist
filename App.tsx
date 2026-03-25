@@ -701,7 +701,7 @@ const App: React.FC = () => {
       // Append short ID to ensure uniqueness
       const fileName = `reports/${auditorName}_${locationName}_${dateStr}_${completedChecklist.id.slice(0, 6)}.pdf`;
 
-      const reportUrl = await uploadFile('field-ops-reports', pdfBlob, fileName);
+      const reportUrl = await uploadFile('field-ops-photos', pdfBlob, fileName);
       checklistForDb.report_url = reportUrl;
 
       // Save new findings (tasks) using the final photo URLs
