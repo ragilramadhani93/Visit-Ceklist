@@ -1,3 +1,5 @@
+import { createHash, createHmac } from 'node:crypto';
+
 type ApiRequest = {
     method?: string;
     body?: any;
@@ -14,20 +16,18 @@ type UploadConfig = {
     publicUrlBase?: string;
 };
 
-async function hmacSha256(key: Buffer | string, message: string): Promise<Buffer> {
-    const { createHmac } = await import('node:crypto');
+function hmacSha256(key: Buffer | string, message: string): Buffer {
     return createHmac('sha256', key).update(message, 'utf8').digest();
 }
 
-async function sha256(data: string): Promise<string> {
-    const { createHash } = await import('node:crypto');
+function sha256(data: string): string {
     return createHash('sha256').update(data, 'utf8').digest('hex');
 }
 
 async function getSignatureKey(key: string, dateStamp: string, region: string, service: string): Promise<Buffer> {
-    const kDate = await hmacSha256(`AWS4${key}`, dateStamp);
-    const kRegion = await hmacSha256(kDate, region);
-    const kService = await hmacSha256(kRegion, service);
+    const kDate = hmacSha256(`AWS4${key}`, dateStamp);
+    const kRegion = hmacSha256(kDate, region);
+    const kService = hmacSha256(kRegion, service);
     return hmacSha256(kService, 'aws4_request');
 }
 
@@ -74,10 +74,10 @@ async function generatePresignedUrl(config: Required<UploadConfig>, bucket: stri
         'UNSIGNED-PAYLOAD',
     ].join('\n');
 
-    const canonicalRequestHash = await sha256(canonicalRequest);
+    const canonicalRequestHash = sha256(canonicalRequest);
     const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${canonicalRequestHash}`;
     const signingKey = await getSignatureKey(config.secretAccessKey, dateStamp, region, service);
-    const signature = (await hmacSha256(signingKey, stringToSign)).toString('hex');
+    const signature = hmacSha256(signingKey, stringToSign).toString('hex');
 
     return `${endpoint}?${sortedQuery}&X-Amz-Signature=${signature}`;
 }
@@ -117,12 +117,31 @@ export const config = {
 };
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
-    const { status, payload } = await handleUploadRequest(req.method, req.body, {
-        accountId: process.env.VITE_R2_ACCOUNT_ID,
-        accessKeyId: process.env.VITE_R2_ACCESS_KEY_ID,
-        secretAccessKey: process.env.VITE_R2_SECRET_ACCESS_KEY,
-        publicUrlBase: process.env.VITE_R2_PUBLIC_URL,
-    });
+    try {
+        if (req.method === 'GET') {
+            return res.status(200).json({
+                ok: true,
+                env: {
+                    accountId: Boolean(process.env.VITE_R2_ACCOUNT_ID),
+                    accessKeyId: Boolean(process.env.VITE_R2_ACCESS_KEY_ID),
+                    secretAccessKey: Boolean(process.env.VITE_R2_SECRET_ACCESS_KEY),
+                    publicUrlBase: Boolean(process.env.VITE_R2_PUBLIC_URL),
+                },
+            });
+        }
 
-    return res.status(status).json(payload);
+        const { status, payload } = await handleUploadRequest(req.method, req.body, {
+            accountId: process.env.VITE_R2_ACCOUNT_ID,
+            accessKeyId: process.env.VITE_R2_ACCESS_KEY_ID,
+            secretAccessKey: process.env.VITE_R2_SECRET_ACCESS_KEY,
+            publicUrlBase: process.env.VITE_R2_PUBLIC_URL,
+        });
+
+        return res.status(status).json(payload);
+    } catch (error: any) {
+        return res.status(500).json({
+            error: error?.message || 'Unexpected upload handler failure',
+            name: error?.name || 'Error',
+        });
+    }
 }
