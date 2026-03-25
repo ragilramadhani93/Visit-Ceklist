@@ -31,10 +31,23 @@ const getImageAsDataURI = async (source: string, mimeType: string = 'image/jpeg'
     }
 };
 
+const getImageFormatFromDataURI = (dataURI: string): 'JPEG' | 'PNG' => {
+    if (dataURI.startsWith('data:image/png')) {
+        return 'PNG';
+    }
+    return 'JPEG';
+};
+
 // Fetches and resizes an image to small dimensions for PDF embedding.
 // This keeps the PDF file size small enough to upload (under Vercel's 4.5MB limit).
-const getResizedImageForPDF = async (source: string, maxPx = 220, quality = 0.4): Promise<string | null> => {
-    const dataUri = await getImageAsDataURI(source, 'image/jpeg');
+const getResizedImageForPDF = async (
+    source: string,
+    maxPx = 220,
+    quality = 0.4,
+    mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg',
+    fillBackground?: string,
+): Promise<string | null> => {
+    const dataUri = await getImageAsDataURI(source, mimeType);
     if (!dataUri) return null;
     return new Promise((resolve) => {
         const img = new Image();
@@ -47,7 +60,19 @@ const getResizedImageForPDF = async (source: string, maxPx = 220, quality = 0.4)
             canvas.height = h;
             const ctx = canvas.getContext('2d');
             if (!ctx) { resolve(dataUri); return; }
+
+            if (fillBackground) {
+                ctx.fillStyle = fillBackground;
+                ctx.fillRect(0, 0, w, h);
+            }
+
             ctx.drawImage(img, 0, 0, w, h);
+
+            if (mimeType === 'image/png') {
+                resolve(canvas.toDataURL('image/png'));
+                return;
+            }
+
             resolve(canvas.toDataURL('image/jpeg', quality));
         };
         img.onerror = () => resolve(dataUri);
@@ -68,9 +93,9 @@ export const generateAuditReportPDF = async (
     const itemsArr = Array.isArray(checklist.items) ? checklist.items.filter(Boolean) : [];
 
     // --- Header ---
-    const logoDataURI = await getResizedImageForPDF(logoUrl, 240, 0.45);
+    const logoDataURI = await getResizedImageForPDF(logoUrl, 240, 0.7, 'image/png', '#ffffff');
     if (logoDataURI) {
-        doc.addImage(logoDataURI, 'JPEG', 15, 10, 40, 20);
+        doc.addImage(logoDataURI, getImageFormatFromDataURI(logoDataURI), 15, 10, 40, 20);
     }
     
     doc.setFontSize(18);
