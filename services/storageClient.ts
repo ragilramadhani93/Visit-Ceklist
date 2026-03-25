@@ -9,6 +9,7 @@ const bucketName = (import.meta as any).env?.VITE_R2_BUCKET_NAME as string | und
 // Normalize old R2 public URL to new URL (migrates DB-stored URLs automatically)
 const OLD_R2_BASE = 'https://pub-bc5cd7b3f4094a7aa7797b4a64ad9295.r2.dev';
 const NEW_R2_BASE = 'https://pub-9d01db2ebda64069a7e7fd1f530e753e.r2.dev';
+const FALLBACK_UPLOAD_LIMIT_BYTES = 3 * 1024 * 1024;
 
 export function normalizeR2Url(url: string): string {
     if (url.startsWith(OLD_R2_BASE)) {
@@ -16,6 +17,52 @@ export function normalizeR2Url(url: string): string {
     }
     return url;
 }
+
+const blobToDataUrlPayload = (blob: Blob | File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(reader.error || new Error('Failed to read file for fallback upload'));
+        reader.onload = () => {
+            if (typeof reader.result === 'string') {
+                resolve(reader.result.split(',')[1] || '');
+                return;
+            }
+            reject(new Error('Unexpected FileReader result during fallback upload'));
+        };
+        reader.readAsDataURL(blob);
+    });
+};
+
+const uploadViaServerFallback = async (bucket: string, file: Blob | File, fileName: string, contentType: string): Promise<string> => {
+    if (file.size > FALLBACK_UPLOAD_LIMIT_BYTES) {
+        throw new Error(`Direct upload failed and fallback only supports files up to ${Math.round(FALLBACK_UPLOAD_LIMIT_BYTES / (1024 * 1024))} MB`);
+    }
+
+    console.warn(`[Storage] Falling back to server-side upload for ${fileName} (${file.size} bytes)`);
+    const fileBase64 = await blobToDataUrlPayload(file);
+    const fallbackResponse = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName, bucket, contentType, fileBase64 }),
+    }).catch(err => {
+        console.error('[Storage] Network error on fallback upload request:', err);
+        throw new Error(`Network error on fallback upload: ${err?.message || err}`);
+    });
+
+    if (!fallbackResponse.ok) {
+        const errorText = await fallbackResponse.text();
+        console.error('[Storage] Fallback upload failed:', { status: fallbackResponse.status, error: errorText });
+        throw new Error(errorText || `Fallback upload failed (HTTP ${fallbackResponse.status})`);
+    }
+
+    const { publicUrl } = await fallbackResponse.json();
+    if (!publicUrl) {
+        throw new Error('Fallback upload did not return a public URL');
+    }
+
+    console.log('[Storage] Fallback upload successful, URL:', publicUrl);
+    return publicUrl;
+};
 
 export const uploadPublic = async (_bucket: string, file: Blob | File, fileName: string): Promise<string> => {
     try {
@@ -83,9 +130,12 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
         }).catch(err => {
             console.error('[Storage] Network error on R2 upload:', err);
             console.error('[Storage] This is likely a CORS issue or network connectivity problem.');
-            console.error('[Storage] If using HTTP, try HTTPS tunnel or deploy to production HTTPS.');
-            throw new Error(`Network error uploading to R2: ${err?.message || err}`);
+            return null;
         });
+
+        if (!uploadResponse) {
+            return await uploadViaServerFallback(bucket, file, fileName, contentType);
+        }
 
         if (!uploadResponse.ok) {
             const errText = await uploadResponse.text();

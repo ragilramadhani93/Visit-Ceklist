@@ -16,6 +16,8 @@ type UploadConfig = {
     publicUrlBase?: string;
 };
 
+const FALLBACK_UPLOAD_LIMIT_BYTES = 3 * 1024 * 1024;
+
 function hmacSha256(key: Buffer | string, message: string): Buffer {
     return createHmac('sha256', key).update(message, 'utf8').digest();
 }
@@ -95,6 +97,7 @@ async function handleUploadRequest(method: string | undefined, body: any, config
         const fileName = typeof body?.fileName === 'string' ? body.fileName.replace(/^\/+/, '').trim() : '';
         const bucket = typeof body?.bucket === 'string' ? body.bucket.trim() : '';
         const contentType = typeof body?.contentType === 'string' && body.contentType ? body.contentType : 'application/octet-stream';
+        const fileBase64 = typeof body?.fileBase64 === 'string' ? body.fileBase64 : '';
 
         if (!fileName || !bucket) {
             return { status: 400, payload: { error: 'Missing fileName or bucket' } };
@@ -104,6 +107,40 @@ async function handleUploadRequest(method: string | undefined, body: any, config
         const base = config.publicUrlBase.endsWith('/') ? config.publicUrlBase.slice(0, -1) : config.publicUrlBase;
         const publicUrl = `${base}/${encodeKey(fileName)}`;
 
+        if (fileBase64) {
+            const cleanBase64 = fileBase64.includes(',') ? fileBase64.split(',')[1] : fileBase64;
+            const fileBuffer = Buffer.from(cleanBase64, 'base64');
+
+            if (fileBuffer.length > FALLBACK_UPLOAD_LIMIT_BYTES) {
+                return {
+                    status: 413,
+                    payload: {
+                        error: `Fallback upload only supports files up to ${Math.round(FALLBACK_UPLOAD_LIMIT_BYTES / (1024 * 1024))} MB`,
+                    },
+                };
+            }
+
+            const uploadResponse = await fetch(presignedUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': contentType,
+                },
+                body: fileBuffer,
+            });
+
+            if (!uploadResponse.ok) {
+                const errorText = await uploadResponse.text();
+                return {
+                    status: uploadResponse.status,
+                    payload: {
+                        error: `Server-side upload failed: ${errorText || uploadResponse.statusText}`,
+                    },
+                };
+            }
+
+            return { status: 200, payload: { publicUrl, uploadedVia: 'server-fallback' } };
+        }
+
         return { status: 200, payload: { presignedUrl, publicUrl } };
     } catch (error: any) {
         return { status: 500, payload: { error: error?.message || 'Failed to generate presigned URL' } };
@@ -112,7 +149,9 @@ async function handleUploadRequest(method: string | undefined, body: any, config
 
 export const config = {
     api: {
-        bodyParser: true,
+        bodyParser: {
+            sizeLimit: '4mb',
+        },
     },
 };
 
