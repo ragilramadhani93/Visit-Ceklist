@@ -208,6 +208,6 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
         return publicUrl;
     } catch (error: any) {
         console.error('[Storage] Upload error:', error);
-        throw new Error(`Photo upload failed: ${error?.message || String(error)}`);
+        throw new Error(`Upload failed for ${fileName} (${Math.round(file.size / 1024)} KB): ${error?.message || String(error)}`);
     }
 };

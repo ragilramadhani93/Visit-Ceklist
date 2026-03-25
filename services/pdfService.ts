@@ -33,7 +33,7 @@ const getImageAsDataURI = async (source: string, mimeType: string = 'image/jpeg'
 
 // Fetches and resizes an image to small dimensions for PDF embedding.
 // This keeps the PDF file size small enough to upload (under Vercel's 4.5MB limit).
-const getResizedImageForPDF = async (source: string, maxPx = 300, quality = 0.5): Promise<string | null> => {
+const getResizedImageForPDF = async (source: string, maxPx = 220, quality = 0.4): Promise<string | null> => {
     const dataUri = await getImageAsDataURI(source, 'image/jpeg');
     if (!dataUri) return null;
     return new Promise((resolve) => {
@@ -62,13 +62,13 @@ export const generateAuditReportPDF = async (
     logoUrl: string,
     imageOverrides?: Record<string, string>
 ): Promise<Blob> => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ compress: true, putOnlyUsedFonts: true });
     const pageHeight = doc.internal.pageSize.getHeight();
     let yPos = 20;
     const itemsArr = Array.isArray(checklist.items) ? checklist.items.filter(Boolean) : [];
 
     // --- Header ---
-    const logoDataURI = await getImageAsDataURI(logoUrl);
+    const logoDataURI = await getResizedImageForPDF(logoUrl, 240, 0.45);
     if (logoDataURI) {
         doc.addImage(logoDataURI, 'JPEG', 15, 10, 40, 20);
     }
@@ -223,10 +223,10 @@ export const generateAuditReportPDF = async (
 
                 const imagesForRow = itemImages[data.row.index];
                 if (imagesForRow && imagesForRow.length > 0) {
-                    const maxImagesToShow = 2; // Reduced to 2 to make them larger
+                    const maxImagesToShow = 1; // Keep report compact for reliable upload on fallback path
                     const padding = 2;
                     const availableWidth = data.cell.width - (padding * 2);
-                    const imgSize = Math.min(45, (availableWidth - (padding * (maxImagesToShow - 1))) / maxImagesToShow);
+                    const imgSize = Math.min(32, (availableWidth - (padding * (maxImagesToShow - 1))) / maxImagesToShow);
                     
                     imagesForRow.slice(0, maxImagesToShow).forEach((imgDataUri, imgIndex) => {
                         if (imgDataUri) {
@@ -267,7 +267,7 @@ export const generateAuditReportPDF = async (
         yPos += 50;
     }
 
-    const selfieDataURI = await getResizedImageForPDF(checklist.auditor_selfie || '', 200, 0.6);
+    const selfieDataURI = await getResizedImageForPDF(checklist.auditor_selfie || '', 160, 0.45);
     if (selfieDataURI) {
         if (yPos > pageHeight - 80) {
             doc.addPage();
@@ -291,7 +291,7 @@ export const generateFindingsReportPDF = async (
   users: User[],
   reportTitle: string
 ): Promise<Blob> => {
-  const doc = new jsPDF();
+    const doc = new jsPDF({ compress: true, putOnlyUsedFonts: true });
   let yPos = 20;
 
   doc.setFontSize(18);
