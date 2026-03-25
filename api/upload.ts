@@ -7,7 +7,7 @@ type ApiResponse = {
     status: (code: number) => { json: (payload: unknown) => void };
 };
 
-import { handleUploadRequest } from './uploadHandler.ts';
+import { handleUploadRequest } from './uploadHandler';
 
 export const config = {
     api: {
