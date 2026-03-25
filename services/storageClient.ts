@@ -34,29 +34,55 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
 
         // Step 1: Get presigned URL from server (tiny JSON request, no file data)
         console.log(`[Storage] Requesting presigned URL for ${bucket}/${fileName}...`);
+        console.log(`[Storage] POST /api/upload (request body: fileName="${fileName}", bucket="${bucket}", contentType="${contentType}")`);
+        
         const presignResponse = await fetch('/api/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fileName, bucket, contentType }),
+        }).catch(err => {
+            console.error('[Storage] Network error on presign request:', err);
+            throw new Error(`Network error requesting presigned URL: ${err?.message || err}`);
         });
 
         if (!presignResponse.ok) {
-            const errorData = await presignResponse.json().catch(() => ({}));
+            let errorData: any = {};
+            try {
+                errorData = await presignResponse.json();
+            } catch (e) {
+                const text = await presignResponse.text();
+                console.error('[Storage] Presign response (not JSON):', text);
+            }
+            console.error('[Storage] Presign response error:', { status: presignResponse.status, error: errorData });
             throw new Error(errorData.error || `Failed to get presigned URL (HTTP ${presignResponse.status})`);
         }
 
         const { presignedUrl, publicUrl } = await presignResponse.json();
+        console.log('[Storage] Got presigned URL, uploading to R2...');
+        console.log(`[Storage] Presigned URL: ${presignedUrl}`);
+        console.log(`[Storage] Presigned URL host: ${new URL(presignedUrl).hostname}`);
+        console.log(`[Storage] Presigned URL protocol: ${new URL(presignedUrl).protocol}`);
 
         // Step 2: Upload file DIRECTLY to R2 (bypasses Vercel completely - no size limit)
         console.log(`[Storage] Uploading ${file.size} bytes directly to R2...`);
+        
         const uploadResponse = await fetch(presignedUrl, {
             method: 'PUT',
-            headers: { 'Content-Type': contentType },
+            headers: { 
+                'Content-Type': contentType,
+            },
             body: file,
+            mode: 'cors',
+        }).catch(err => {
+            console.error('[Storage] Network error on R2 upload:', err);
+            console.error('[Storage] This is likely a CORS issue or network connectivity problem.');
+            console.error('[Storage] If using HTTP, try HTTPS tunnel or deploy to production HTTPS.');
+            throw new Error(`Network error uploading to R2: ${err?.message || err}`);
         });
 
         if (!uploadResponse.ok) {
             const errText = await uploadResponse.text();
+            console.error('[Storage] R2 upload failed:', { status: uploadResponse.status, error: errText });
             throw new Error(`Direct R2 upload failed (HTTP ${uploadResponse.status}): ${errText}`);
         }
 

@@ -47,12 +47,11 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
 
   const handleVideoCapture = async (blob: Blob) => {
     try {
-        // Check file size before upload - base64 encoding adds ~33% overhead
-        const maxUploadSize = 3 * 1024 * 1024; // 3MB limit (accounts for base64 overhead)
-        const estimatedBase64Size = (blob.size / 3) * 4;
+        // Check file size before upload - files uploaded directly to R2, no base64 encoding
+        const maxVideoSize = 50 * 1024 * 1024; // 50MB limit (same as file input)
         
-        if (estimatedBase64Size > maxUploadSize) {
-            alert(`Video is too large (${Math.round(blob.size / 1024 / 1024)}MB). Maximum video size is 2MB. Please record a shorter video.`);
+        if (blob.size > maxVideoSize) {
+            alert(`Video is too large (${Math.round(blob.size / 1024 / 1024)}MB). Maximum video size is 50MB. Please record or select a shorter video.`);
             setVideoRecorderOpen(false);
             return;
         }
@@ -357,10 +356,10 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
                     handleNativeCamera();
                     return;
                   }
-                  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                  if (window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     setCameraOpen(true);
                   } else {
-                    alert('Camera not supported on this device');
+                    photoInputRef.current?.click();
                   }
                 }} 
                 className="w-32 h-32 bg-gray-100 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors border-2 border-dashed border-gray-300 p-2"

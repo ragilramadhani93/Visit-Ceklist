@@ -10,6 +10,7 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [timeLeft, setTimeLeft] = useState(15);
@@ -112,6 +113,19 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
 
   const startCamera = async () => {
     setPermissionError(false);
+    
+    // Check if mediaDevices is available
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error('[VideoRecorder] navigator.mediaDevices is not available in this browser/context');
+      console.error('[VideoRecorder] Browser support check:', {
+        hasMediaDevices: !!navigator.mediaDevices,
+        isSecureContext: window.isSecureContext,
+        protocol: window.location.protocol,
+      });
+      setPermissionError(true);
+      return;
+    }
+
     try {
       // 1. Try environment camera with audio
       try {
@@ -125,7 +139,8 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
           videoRef.current.srcObject = mediaStream;
         }
       } catch (err) {
-        console.warn("Failed to get environment camera with audio, trying fallback...", err);
+        const error = err as any;
+        console.warn(`[VideoRecorder] Failed to get environment camera with audio (${error?.name || 'unknown'}):`, error?.message || err);
         // 2. Try any camera with audio
         const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
           video: true, 
@@ -138,7 +153,8 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
         }
       }
     } catch (err) {
-      console.warn("Failed to get camera with audio, trying video only...", err);
+      const error = err as any;
+      console.warn(`[VideoRecorder] Failed to get camera with audio (${error?.name || 'unknown'}), trying video only...`, error?.message || err);
       try {
         // 3. Try video only (no audio)
         const videoOnlyStream = await navigator.mediaDevices.getUserMedia({ 
@@ -151,7 +167,14 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
           videoRef.current.srcObject = videoOnlyStream;
         }
       } catch (finalErr) {
-        console.error("Error accessing camera:", finalErr);
+        const error = finalErr as any;
+        console.error(`[VideoRecorder] Camera access completely blocked (${error?.name || 'unknown'}):`, error?.message || finalErr);
+        console.error('[VideoRecorder] Error details:', {
+          name: error?.name,
+          message: error?.message,
+          isHTTP: window.location.protocol === 'http:',
+          isSecureContext: window.isSecureContext,
+        });
         setPermissionError(true);
       }
     }
@@ -197,6 +220,19 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
     }
   };
 
+  const handleFileVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const blob = new Blob([file], { type: file.type || 'video/webm' });
+        onCapture(blob);
+      } catch (error) {
+        console.error('Error processing video file:', error);
+        alert('Failed to process video file');
+      }
+    }
+  };
+
   const handleRetake = () => {
     setRecordedBlob(null);
     setTimeLeft(15);
@@ -230,13 +266,29 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
              <p className="mb-6 text-gray-300">
                Could not access camera. Please ensure permissions are granted and a camera is available.
              </p>
-             <button 
-               onClick={startCamera}
-               className="bg-white text-black px-6 py-2 rounded-full font-semibold flex items-center gap-2 mx-auto hover:bg-gray-200 transition-colors"
-             >
-               <RefreshCw size={20} />
-               Retry
-             </button>
+             <div className="flex flex-col gap-3">
+               <button 
+                 onClick={startCamera}
+                 className="bg-white text-black px-6 py-2 rounded-full font-semibold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+               >
+                 <RefreshCw size={20} />
+                 Retry
+               </button>
+               <button 
+                 onClick={() => videoInputRef.current?.click()}
+                 className="bg-gray-600 text-white px-6 py-2 rounded-full font-semibold flex items-center justify-center gap-2 hover:bg-gray-700 transition-colors"
+               >
+                 <Video size={20} />
+                 Select from Gallery
+               </button>
+             </div>
+             <input
+               type="file"
+               ref={videoInputRef}
+               onChange={handleFileVideoSelect}
+               accept="video/*"
+               className="hidden"
+             />
            </div>
         ) : !recordedBlob ? (
           <>

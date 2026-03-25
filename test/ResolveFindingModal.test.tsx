@@ -4,7 +4,8 @@ import ResolveFindingModal from '@/components/findings/ResolveFindingModal'
 import { TaskPriority } from '@/types'
 
 vi.mock('@/utils/fileUtils', () => ({
-  blobToBase64: async () => 'AAA_BASE64'
+  blobToBase64: async () => 'AAA_BASE64',
+  resizeImage: async (blob: Blob) => blob,
 }))
 
 const finding = {
