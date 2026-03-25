@@ -46,15 +46,22 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
         });
 
         if (!presignResponse.ok) {
-            let errorData: any = {};
+            let errorMessage = `Failed to get presigned URL (HTTP ${presignResponse.status})`;
             try {
-                errorData = await presignResponse.json();
-            } catch (e) {
                 const text = await presignResponse.text();
-                console.error('[Storage] Presign response (not JSON):', text);
+                console.error('[Storage] Presign response error body:', text);
+                try {
+                    const errorData = JSON.parse(text);
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {
+                    // Response was not JSON, use the text as is
+                    errorMessage = text || errorMessage;
+                }
+            } catch (e) {
+                console.error('[Storage] Could not read presign error response:', e);
             }
-            console.error('[Storage] Presign response error:', { status: presignResponse.status, error: errorData });
-            throw new Error(errorData.error || `Failed to get presigned URL (HTTP ${presignResponse.status})`);
+            console.error('[Storage] Presign HTTP error:', { status: presignResponse.status, message: errorMessage });
+            throw new Error(errorMessage);
         }
 
         const { presignedUrl, publicUrl } = await presignResponse.json();
