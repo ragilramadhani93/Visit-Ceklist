@@ -1,4 +1,4 @@
-﻿export enum Role {
+export enum Role {
   Admin = 'Admin',
   Auditor = 'Auditor',
 }
@@ -24,10 +24,14 @@ export interface ChecklistItemBase {
   minPhotos?: number; // Replaces requireLivePhoto
   photoSource?: 'live' | 'upload';
   evidenceType?: 'photo' | 'video';
+  category?: string;
+  weight?: number;
+  scoring_enabled?: boolean;
 }
 
 export interface ChecklistItem extends ChecklistItemBase {
   value: any;
+  score?: number; // 0, 1, 2, 3
   photoEvidence?: string[]; // Can now hold multiple photos
   finding?: Task | null;
   finding_id?: string | null; // Stores the ID of the created task
@@ -36,26 +40,37 @@ export interface ChecklistItem extends ChecklistItemBase {
   note?: string;
 }
 
-export interface Checklist {
-  id: string;
-  title: string;
-  location: string | null;
-  assigned_to: string | null; // User ID
-  due_date: string | null;
-  status: 'pending' | 'in-progress' | 'completed' | null;
-  items: ChecklistItem[];
-  check_in_time?: string;
-  check_out_time?: string;
-  auditor_signature?: string; // URL
-  auditor_selfie?: string; // base64 or URL (not persisted)
-  report_url?: string; // URL
-  created_at?: string;
+export interface CategorySetting {
+  name: string;
+  weight: number;
 }
 
 export interface ChecklistTemplate {
   id: string;
   title: string;
   items: ChecklistItemBase[];
+  scoring_enabled?: boolean;
+  category_settings?: CategorySetting[];
+}
+
+export interface Checklist {
+  id?: string;
+  title: string;
+  location: string;
+  assigned_to: string;
+  due_date: string;
+  status: 'pending' | 'in-progress' | 'completed';
+  items: ChecklistItem[];
+  scoring_enabled?: boolean;
+  category_settings?: CategorySetting[];
+  score_percentage?: number;
+  total_score?: number;
+  max_score?: number;
+  check_in_time?: string | null;
+  check_out_time?: string | null;
+  auditor_signature?: string | null;
+  auditor_selfie?: string | null;
+  report_url?: string | null;
 }
 
 

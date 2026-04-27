@@ -3,6 +3,14 @@ const accessKeyId = (import.meta as any).env?.VITE_R2_ACCESS_KEY_ID as string | 
 const secretAccessKey = (import.meta as any).env?.VITE_R2_SECRET_ACCESS_KEY as string | undefined;
 const publicUrlBase = (import.meta as any).env?.VITE_R2_PUBLIC_URL as string | undefined;
 const bucketName = (import.meta as any).env?.VITE_R2_BUCKET_NAME as string | undefined;
+const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL as string | undefined;
+
+// Helper to get absolute API URL
+const getApiUrl = (path: string): string => {
+    const base = apiBaseUrl || '';
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${base}${cleanPath}`;
+};
 
 // Note: R2 uploads are now handled server-side via /api/upload endpoint to bypass CORS issues
 
@@ -37,8 +45,8 @@ const compressImageForUpload = async (file: Blob | File): Promise<Blob | File> =
         return file;
     }
 
-    const scales = [1, 0.85, 0.7, 0.55, 0.45];
-    const qualities = [0.82, 0.72, 0.64, 0.56, 0.5];
+    const scales = [1, 0.9, 0.8, 0.7];
+    const qualities = [0.92, 0.85, 0.78, 0.7];
     let smallestBlob: Blob | null = null;
 
     for (const scale of scales) {
@@ -95,7 +103,7 @@ const uploadViaServerFallback = async (bucket: string, file: Blob | File, fileNa
 
     // Use raw binary upload (no base64 overhead) to maximise file size support
     const params = new URLSearchParams({ fileName, bucket, contentType: effectiveContentType });
-    const fallbackResponse = await fetch(`/api/upload?${params.toString()}`, {
+    const fallbackResponse = await fetch(getApiUrl(`/api/upload?${params.toString()}`), {
         method: 'PUT',
         headers: { 'Content-Type': effectiveContentType },
         body: uploadCandidate,
@@ -142,9 +150,9 @@ export const uploadPublic = async (_bucket: string, file: Blob | File, fileName:
 
         // Step 1: Get presigned URL from server (tiny JSON request, no file data)
         console.log(`[Storage] Requesting presigned URL for ${bucket}/${fileName}...`);
-        console.log(`[Storage] POST /api/upload (request body: fileName="${fileName}", bucket="${bucket}", contentType="${contentType}")`);
+        console.log(`[Storage] POST ${getApiUrl('/api/upload')} (request body: fileName="${fileName}", bucket="${bucket}", contentType="${contentType}")`);
         
-        const presignResponse = await fetch('/api/upload', {
+        const presignResponse = await fetch(getApiUrl('/api/upload'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fileName, bucket, contentType }),

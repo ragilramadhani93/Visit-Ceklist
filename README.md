@@ -159,68 +159,29 @@ User management is now handled by **Supabase Authentication**. You must create u
 4.  Click **"Add user"**. The trigger you set up in the SQL script will automatically create a corresponding profile in the `public.users` table.
 5.  **To create an Admin user:** After creating a user, log in to the app with your Admin account, go to **User Management**, and change the new user's role from "Auditor" (the default) to "Admin".
 
-## 5. Supabase Storage Setup
+## 5. Storage Setup (Cloudflare R2)
 
-You will need two storage buckets for this application: one for photos and one for PDF reports.
+This application uses **Cloudflare R2** for storing all media and reports. All files are stored in a single bucket named `field-ops-photos`.
 
-### Bucket 1: `field-ops-photos`
+### Bucket: `field-ops-photos`
 
-1.  In your Supabase project, go to the **Storage** section.
-2.  Click **New bucket**.
-3.  Name the bucket `field-ops-photos` and check the **Public bucket** option.
-4.  Click **Create bucket**.
-5.  Go to the **SQL Editor** and run the following script to set up access policies for photo uploads.
+1.  Create a bucket named `field-ops-photos` in your Cloudflare R2 dashboard.
+2.  Enable **Public Access** for this bucket.
+3.  Configure **CORS** using the `setup-r2-cors.mjs` script provided in the repository.
 
-```sql
--- Drop existing policies if they exist, to ensure a clean setup.
-DROP POLICY IF EXISTS "Public read access for field-ops-photos" ON storage.objects;
-DROP POLICY IF EXISTS "Allow authenticated uploads for field-ops-photos" ON storage.objects;
+**Storage Structure:**
+-   `evidence/`: Stores photo and video evidence for checklist items.
+-   `reports/`: Stores generated PDF audit reports.
+-   `signatures/`: Stores auditor signatures.
+-   `selfies/`: Stores auditor check-in selfies.
 
--- Policy: Allow public read access to all files in the 'field-ops-photos' bucket.
-CREATE POLICY "Public read access for field-ops-photos"
-ON storage.objects FOR SELECT
-USING ( bucket_id = 'field-ops-photos' );
-
--- Policy: Allow any authenticated user to upload files to the 'field-ops-photos' bucket.
-CREATE POLICY "Allow authenticated uploads for field-ops-photos"
-ON storage.objects FOR INSERT
-TO authenticated
--- FIX: Removed the `auth.uid() = owner` check. This check fails on INSERT because
--- the 'owner' column is populated by Supabase *during* the transaction, not before
--- the policy check. The simplified policy correctly allows any authenticated user
--- to upload, and Supabase will automatically assign ownership. This resolves the
--- "violates row-level security policy" error.
-WITH CHECK ( bucket_id = 'field-ops-photos' );
-```
-
-### Bucket 2: `field-ops-reports`
-
-1.  In the **Storage** section, click **New bucket** again.
-2.  Name the bucket `field-ops-reports` and check the **Public bucket** option.
-3.  Click **Create bucket**.
-4.  Go to the **SQL Editor** and run the following script to set up access policies for PDF report uploads.
-
-```sql
--- Drop existing policies if they exist, to ensure a clean setup.
-DROP POLICY IF EXISTS "Public read access for field-ops-reports" ON storage.objects;
-DROP POLICY IF EXISTS "Allow authenticated uploads for field-ops-reports" ON storage.objects;
-
--- Policy: Allow public read access to all files in the 'field-ops-reports' bucket.
-CREATE POLICY "Public read access for field-ops-reports"
-ON storage.objects FOR SELECT
-USING ( bucket_id = 'field-ops-reports' );
-
--- Policy: Allow any authenticated user to upload files to the 'field-ops-reports' bucket.
-CREATE POLICY "Allow authenticated uploads for field-ops-reports"
-ON storage.objects FOR INSERT
-TO authenticated
--- FIX: Removed the `auth.uid() = owner` check. This check fails on INSERT because
--- the 'owner' column is populated by Supabase *during* the transaction, not before
--- the policy check. The simplified policy correctly allows any authenticated user
--- to upload, and Supabase will automatically assign ownership. This resolves the
--- "violates row-level security policy" error.
-WITH CHECK ( bucket_id = 'field-ops-reports' );
-```
+### Environment Variables for R2
+Ensure the following variables are set in your environment:
+- `VITE_R2_ACCOUNT_ID`
+- `VITE_R2_ACCESS_KEY_ID`
+- `VITE_R2_SECRET_ACCESS_KEY`
+- `VITE_R2_PUBLIC_URL`
+- `VITE_R2_BUCKET_NAME` (Set this to `field-ops-photos`)
 
 ### Uploading the Application Logo
 

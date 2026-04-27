@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Checklist, ChecklistItem as ChecklistItemType, TaskPriority } from '../../types';
 import ChecklistItem from './ChecklistItem';
 import SignaturePad from './SignaturePad';
@@ -278,12 +278,55 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
       alert("Please provide a signature.");
       return;
     }
+
+    // Calculate scores if scoring is enabled
+    let totalScore = 0;
+    let maxScore = 0;
+    let scorePercentage = 0;
+
+    if (currentChecklist.scoring_enabled) {
+      const categoryScores: Record<string, { total: number, max: number }> = {};
+      
+      currentChecklist.items.forEach(item => {
+        const cat = item.category || 'Uncategorized';
+        if (!categoryScores[cat]) categoryScores[cat] = { total: 0, max: 0 };
+        
+        if (item.scoring_enabled || typeof item.score === 'number') {
+          const score = typeof item.score === 'number' ? item.score : (typeof item.value === 'number' ? item.value : 0);
+          categoryScores[cat].total += score;
+          categoryScores[cat].max += 3;
+        }
+      });
+
+      let weightedTotal = 0;
+      let weightSum = 0;
+
+      Object.entries(categoryScores).forEach(([catName, scores]) => {
+        if (scores.max === 0) return;
+        const catSetting = (currentChecklist.category_settings || []).find(s => s.name === catName);
+        const weight = catSetting ? catSetting.weight : 1;
+        
+        const catPercentage = (scores.total / scores.max) * 100;
+        weightedTotal += catPercentage * weight;
+        weightSum += weight;
+      });
+
+      if (weightSum > 0) {
+        scorePercentage = Math.round(weightedTotal / weightSum);
+        totalScore = Math.round(weightedTotal * 10) / 10;
+        maxScore = weightSum * 100;
+      }
+    }
+
     const finalChecklist = {
       ...currentChecklist,
       auditor_signature: signature,
       auditor_selfie: selfie || undefined,
       check_out_time: new Date().toISOString(),
       status: 'completed' as 'completed',
+      total_score: totalScore,
+      max_score: maxScore,
+      score_percentage: scorePercentage,
     };
     onSubmit(finalChecklist);
   }
@@ -390,8 +433,41 @@ const ChecklistView: React.FC<ChecklistViewProps> = ({ checklist, onBack, onSubm
     <div className="flex flex-col h-screen bg-white max-w-md mx-auto shadow-2xl">
       {renderHeader(checklist.location || 'Audit Location')}
       <main className="flex-1 overflow-y-auto p-5">
-        <div className="w-full text-center mb-5">
-          <p className="text-sm text-gray-400 mb-1">{completionPercentage}%</p>
+        <div className="w-full mb-5">
+          <div className="flex justify-between items-end mb-1">
+            <p className="text-sm text-gray-400">{completionPercentage}%</p>
+            {currentChecklist.scoring_enabled && (
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] font-medium text-gray-500 uppercase leading-none mb-1">Current Score</span>
+                <span className="text-lg font-black text-primary leading-none">
+                  {(() => {
+                    const categoryScores: Record<string, { total: number, max: number }> = {};
+                    currentChecklist.items.forEach(item => {
+                      const cat = item.category || 'Uncategorized';
+                      if (!categoryScores[cat]) categoryScores[cat] = { total: 0, max: 0 };
+                      if (item.scoring_enabled || typeof item.score === 'number') {
+                        const score = typeof item.score === 'number' ? item.score : (typeof item.value === 'number' ? item.value : 0);
+                        categoryScores[cat].total += score;
+                        categoryScores[cat].max += 3;
+                      }
+                    });
+
+                    let weightedTotal = 0;
+                    let weightSum = 0;
+                    Object.entries(categoryScores).forEach(([catName, scores]) => {
+                      if (scores.max === 0) return;
+                      const catSetting = (currentChecklist.category_settings || []).find(s => s.name === catName);
+                      const weight = catSetting ? catSetting.weight : 1;
+                      weightedTotal += (scores.total / scores.max) * 100 * weight;
+                      weightSum += weight;
+                    });
+
+                    return weightSum > 0 ? `${Math.round(weightedTotal / weightSum)}%` : '0%';
+                  })()}
+                </span>
+              </div>
+            )}
+          </div>
           <div className="w-full bg-gray-200 rounded-full h-1.5">
             <div className="bg-primary h-1.5 rounded-full transition-all duration-300" style={{ width: `${completionPercentage}%` }}></div>
           </div>

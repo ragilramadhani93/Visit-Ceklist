@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Checklist, User, Role, ChecklistTemplate, Task, ChecklistItem, Outlet, ChecklistItemBase } from './types';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
@@ -460,31 +460,45 @@ const App: React.FC = () => {
       minPhotos: typeof item.minPhotos === 'number' ? item.minPhotos : 0,
       photoSource: item.photoSource === 'upload' ? 'upload' : 'live',
       evidenceType: item.evidenceType || 'photo',
+      category: item.category || '',
+      weight: typeof item.weight === 'number' ? item.weight : 1,
+      scoring_enabled: !!item.scoring_enabled,
     }));
 
     const payload = {
       id: template.id || undefined,
       title: template.title,
       items: normalizedItems,
+      scoring_enabled: !!template.scoring_enabled,
+      category_settings: template.category_settings || [],
     };
 
     let data: any = null;
     let error: any = null;
     try {
       const itemsJson = JSON.stringify(payload.items);
+      const settingsJson = JSON.stringify(payload.category_settings);
       const isUpdate = payload.id !== undefined;
-      // SQLite doesn't have standard UPSERT easily without knowing fields. Since ID is uuid, we do replace or insert.
-      // But we just use explicit UPDATE or INSERT
       let newId = payload.id;
       if (isUpdate) {
-        await turso.execute({ sql: 'UPDATE checklist_templates SET title = ?, items = ? WHERE id = ?', args: [payload.title, itemsJson, payload.id] });
+        await turso.execute({ 
+          sql: 'UPDATE checklist_templates SET title = ?, items = ?, scoring_enabled = ?, category_settings = ? WHERE id = ?', 
+          args: [payload.title, itemsJson, payload.scoring_enabled ? 1 : 0, settingsJson, payload.id] 
+        });
       } else {
         newId = crypto.randomUUID();
-        await turso.execute({ sql: 'INSERT INTO checklist_templates (id, title, items) VALUES (?, ?, ?)', args: [newId, payload.title, itemsJson] });
+        await turso.execute({ 
+          sql: 'INSERT INTO checklist_templates (id, title, items, scoring_enabled, category_settings) VALUES (?, ?, ?, ?, ?)', 
+          args: [newId, payload.title, itemsJson, payload.scoring_enabled ? 1 : 0, settingsJson] 
+        });
       }
       const res = await turso.execute({ sql: 'SELECT * FROM checklist_templates WHERE id = ?', args: [newId] });
       data = res.rows[0];
-      if (data && typeof data.items === 'string') data.items = JSON.parse(data.items);
+      if (data) {
+        if (typeof data.items === 'string') data.items = JSON.parse(data.items);
+        if (typeof data.category_settings === 'string') data.category_settings = JSON.parse(data.category_settings);
+        data.scoring_enabled = !!data.scoring_enabled;
+      }
     } catch (e: any) { error = e; }
     if (error) {
       alert(`Error saving template: ${error.message}`);
@@ -565,12 +579,9 @@ const App: React.FC = () => {
           assigned_to: auditorId,
           due_date: dueDate,
           status: 'pending',
-          // FIX: Replaced the spread operator (`...item`) with explicit property definitions for every field.
-          // This creates a 100% consistent JSON structure for the `items` array, preventing `undefined` values
-          // from being sent to the database. This is the definitive fix for the misleading schema cache error
-          // on `report_url` which was caused by an inconsistent JSON payload.
+          scoring_enabled: !!template.scoring_enabled,
+          category_settings: template.category_settings || [],
           items: template.items.map((item: ChecklistItemBase): ChecklistItem => ({
-            // Fields from ChecklistItemBase
             id: item.id,
             question: item.question,
             type: item.type,
@@ -580,9 +591,12 @@ const App: React.FC = () => {
             minPhotos: item.minPhotos || 0,
             photoSource: item.photoSource || 'live',
             evidenceType: item.evidenceType || 'photo',
+            category: item.category || '',
+            weight: typeof item.weight === 'number' ? item.weight : 1,
+            scoring_enabled: !!item.scoring_enabled,
 
-            // Fields from ChecklistItem
             value: null,
+            score: 0,
             photoEvidence: [],
             finding: null,
             finding_id: null,
@@ -605,14 +619,27 @@ const App: React.FC = () => {
         data = [];
         for (const cl of newChecklists) {
           const clId = crypto.randomUUID();
-          const keys = Object.keys(cl).filter(k => k !== 'items').join(', ');
-          const placeholders = Object.keys(cl).filter(k => k !== 'items').map(() => '?').join(', ');
-          const values = Object.keys(cl).filter(k => k !== 'items').map(k => (cl as any)[k]);
-          await turso.execute({ sql: `INSERT INTO checklists (id, items, ${keys}) VALUES (?, ?, ${placeholders})`, args: [clId, JSON.stringify(cl.items), ...values] });
+          const itemsJson = JSON.stringify(cl.items);
+          const settingsJson = JSON.stringify(cl.category_settings || []);
+          const keys = Object.keys(cl).filter(k => k !== 'items' && k !== 'category_settings').join(', ');
+          const placeholders = Object.keys(cl).filter(k => k !== 'items' && k !== 'category_settings').map(() => '?').join(', ');
+          const values = Object.keys(cl).filter(k => k !== 'items' && k !== 'category_settings').map(k => {
+            const val = (cl as any)[k];
+            if (typeof val === 'boolean') return val ? 1 : 0;
+            return val;
+          });
+          await turso.execute({ 
+            sql: `INSERT INTO checklists (id, items, category_settings, ${keys}) VALUES (?, ?, ?, ${placeholders})`, 
+            args: [clId, itemsJson, settingsJson, ...values] 
+          });
           const res = await turso.execute({ sql: 'SELECT * FROM checklists WHERE id = ?', args: [clId] });
           const inserted = res.rows[0];
-          if (inserted && typeof inserted.items === 'string') inserted.items = JSON.parse(inserted.items);
-          data.push(inserted);
+          if (inserted) {
+            if (typeof inserted.items === 'string') inserted.items = JSON.parse(inserted.items);
+            if (typeof inserted.category_settings === 'string') inserted.category_settings = JSON.parse(inserted.category_settings);
+            inserted.scoring_enabled = !!inserted.scoring_enabled;
+            data.push(inserted);
+          }
         }
       } catch (e: any) { error = e; }
       if (error) {

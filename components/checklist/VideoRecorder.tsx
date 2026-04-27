@@ -130,7 +130,13 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onCapture, onCancel }) =>
       // 1. Try environment camera with audio
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: { ideal: 'environment' }, zoom: true } as any, 
+          video: { 
+            facingMode: { ideal: 'environment' }, 
+            zoom: true,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 }
+          } as any, 
           audio: true 
         });
         setStream(mediaStream);

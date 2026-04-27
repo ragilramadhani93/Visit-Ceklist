@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { ChecklistItem as ChecklistItemType } from '../../types';
 import { Camera, X, Video as VideoIcon } from 'lucide-react';
 import { blobToBase64, resizeImage, base64ToBlob } from '../../utils/fileUtils';
@@ -374,6 +374,40 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
     );
   };
   
+  const renderScoringInput = () => {
+    if (!item.scoring_enabled) return null;
+    return (
+      <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-gray-100">
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Item Scoring</span>
+          {item.category && (
+            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px] font-bold">
+              {item.category} (w: {item.weight || 1})
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {[0, 1, 2, 3].map((s) => (
+            <button
+              key={s}
+              onClick={() => onChange(item.id, { score: s })}
+              className={`py-2 px-1 rounded-lg border-2 transition-all flex flex-col items-center justify-center space-y-1 ${
+                item.score === s
+                  ? 'bg-primary/10 border-primary text-primary shadow-sm'
+                  : 'bg-white border-gray-100 text-gray-500 hover:border-gray-200'
+              }`}
+            >
+              <span className="text-lg font-bold">{s}</span>
+              <span className="text-[9px] uppercase font-medium">
+                {s === 0 ? 'Poor' : s === 1 ? 'Fair' : s === 2 ? 'Good' : 'Excellent'}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderGenericInput = () => {
     switch (item.type) {
         case 'text':
@@ -393,6 +427,8 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, onChange }) => {
     <div className="space-y-6">
       {item.type === 'yes-no' ? renderYesNoFlagInput() : renderGenericInput()}
       
+      {renderScoringInput()}
+
       {showPhotoUploader && (
         <>
           {renderPhotoUploader()}

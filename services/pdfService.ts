@@ -42,8 +42,8 @@ const getImageFormatFromDataURI = (dataURI: string): 'JPEG' | 'PNG' => {
 // This keeps the PDF file size small enough to upload (under Vercel's 4.5MB limit).
 const getResizedImageForPDF = async (
     source: string,
-    maxPx = 220,
-    quality = 0.4,
+    maxPx = 400,
+    quality = 0.75,
     mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg',
     fillBackground?: string,
 ): Promise<string | null> => {
@@ -109,24 +109,70 @@ export const generateAuditReportPDF = async (
     doc.text('Audit Details', 15, yPos);
     yPos += 5;
 
-    // FIX: Cast `doc` to `any` to call the `autoTable` method from the plugin.
+    const auditDetailsBody = [
+        ['Checklist Title', checklist.title],
+        ['Location', checklist.location],
+        ['Auditor', auditor?.name || 'N/A'],
+        ['Check-in Time', checklist.check_in_time ? new Date(checklist.check_in_time).toLocaleString() : 'N/A'],
+        ['Check-out Time', checklist.check_out_time ? new Date(checklist.check_out_time).toLocaleString() : 'N/A'],
+        ['Status', checklist.status],
+    ];
+
+    if (checklist.scoring_enabled) {
+        auditDetailsBody.push(['Total Score', `${checklist.total_score || 0} / ${checklist.max_score || 0}`]);
+        auditDetailsBody.push(['Percentage', `${checklist.score_percentage || 0}%`]);
+    }
+
     (doc as any).autoTable({
         startY: yPos,
-        body: [
-            ['Checklist Title', checklist.title],
-            ['Location', checklist.location],
-            ['Auditor', auditor?.name || 'N/A'],
-            ['Check-in Time', checklist.check_in_time ? new Date(checklist.check_in_time).toLocaleString() : 'N/A'],
-            ['Check-out Time', checklist.check_out_time ? new Date(checklist.check_out_time).toLocaleString() : 'N/A'],
-            ['Status', checklist.status],
-        ],
+        body: auditDetailsBody,
         theme: 'grid',
         styles: { fontSize: 10 },
         headStyles: { fillColor: [128, 0, 0] },
         columnStyles: { 0: { fontStyle: 'bold' } },
     });
     
-    yPos = (doc as any).lastAutoTable.finalY + 15;
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+
+    // --- Category Summary (if scoring enabled) ---
+    if (checklist.scoring_enabled) {
+        const categoryScores: Record<string, { total: number, max: number }> = {};
+        
+        checklist.items.forEach(item => {
+            const cat = item.category || 'Uncategorized';
+            if (!categoryScores[cat]) categoryScores[cat] = { total: 0, max: 0 };
+            
+            if (item.scoring_enabled || typeof item.score === 'number') {
+                const s = typeof item.score === 'number' ? item.score : (typeof item.value === 'number' ? item.value : 0);
+                categoryScores[cat].total += s;
+                categoryScores[cat].max += 3;
+            }
+        });
+
+        const categorySummaryBody = Object.entries(categoryScores).map(([cat, scores]) => {
+            const catSetting = (checklist.category_settings || []).find(s => s.name === cat);
+            const weight = catSetting ? catSetting.weight : 1;
+            const percentage = scores.max > 0 ? Math.round((scores.total / scores.max) * 100) : 0;
+            return [cat, `${scores.total} / ${scores.max}`, `Weight: ${weight}`, `${percentage}%`];
+        });
+
+        if (categorySummaryBody.length > 0) {
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Category Summary', 15, yPos);
+            yPos += 5;
+
+            (doc as any).autoTable({
+                startY: yPos,
+                head: [['Category', 'Raw Score', 'Weight', 'Percentage']],
+                body: categorySummaryBody,
+                theme: 'grid',
+                styles: { fontSize: 10 },
+                headStyles: { fillColor: [128, 0, 0] },
+            });
+            yPos = (doc as any).lastAutoTable.finalY + 10;
+        }
+    }
 
     // --- Checklist Items with Inline Photos ---
     doc.setFontSize(12);
@@ -150,13 +196,25 @@ export const generateAuditReportPDF = async (
     );
 
     const tableData = itemsArr.map((item, index) => {
-        if (!item) return [index + 1, '', 'N/A', '', ''];
+        if (!item) return [index + 1, '', '', 'N/A', '', ''];
         let value = item.value;
         if (item.type === 'yes-no') {
             if (value === 'yes') value = 'Yes';
             if (value === 'no') value = 'No';
             if (value === 'red-flag') value = 'Red Flag';
         }
+        
+        // Append score if enabled
+        if (item.scoring_enabled || typeof item.score === 'number') {
+            const score = typeof item.score === 'number' ? item.score : (typeof item.value === 'number' ? item.value : 0);
+            const scoreLabel = ` (Score: ${score})`;
+            if (typeof value === 'string') {
+                value += scoreLabel;
+            } else if (!value) {
+                value = `Score: ${score}`;
+            }
+        }
+
         // For 'photo' type, value is an array, show count instead.
         if (item.type === 'photo' && Array.isArray(value)) {
             value = `${value.length} photo(s) attached`;
@@ -166,6 +224,7 @@ export const generateAuditReportPDF = async (
         }
         return [
             index + 1,
+            item.category || '-',
             item.question,
             value || 'N/A',
             item.note || '',
@@ -173,18 +232,20 @@ export const generateAuditReportPDF = async (
         ];
     });
 
+    const tableHead = [['#', 'Category', 'Question', 'Answer', 'Notes', 'Photos/Videos']];
+
     (doc as any).autoTable({
         startY: yPos,
-        head: [['#', 'Question', 'Answer', 'Notes', 'Photos/Videos']],
+        head: tableHead,
         body: tableData,
         theme: 'striped',
-        styles: { fontSize: 9, cellPadding: 2, valign: 'middle' },
+        styles: { fontSize: 8, cellPadding: 2, valign: 'middle' },
         headStyles: { fillColor: [128, 0, 0] },
         columnStyles: {
-            4: { cellWidth: 60, minCellHeight: 50 }, // Increased width for larger photos
+            5: { cellWidth: 50, minCellHeight: 40 }, // Increased width for larger photos
         },
         didDrawCell: (data: any) => {
-            if (data.section === 'body' && data.column.index === 4) {
+            if (data.section === 'body' && data.column.index === 5) {
                 const currentPageNumber = (doc as any).internal?.getCurrentPageInfo?.()?.pageNumber;
                 if (currentPageNumber && currentPageNumber !== data.pageNumber) {
                   doc.setPage(data.pageNumber);

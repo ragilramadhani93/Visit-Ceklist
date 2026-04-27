@@ -42,7 +42,7 @@ export function encodeKey(key: string): string {
     return key.split('/').map(segment => encodeURIComponent(segment)).join('/');
 }
 
-async function generatePresignedUrl(config: Required<UploadConfig>, bucket: string, fileName: string, contentType: string, expiresIn = 3600): Promise<string> {
+export async function generatePresignedUrl(config: Required<UploadConfig>, bucket: string, fileName: string, contentType: string, expiresIn = 3600): Promise<string> {
     const region = 'auto';
     const service = 's3';
     const now = new Date();

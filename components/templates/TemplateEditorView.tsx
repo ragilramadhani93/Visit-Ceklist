@@ -83,7 +83,10 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
           question: '',
           type: 'yes-no',
           required: true,
-          minPhotos: 0
+          minPhotos: 0,
+          category: '',
+          weight: 1,
+          scoring_enabled: activeTemplate.scoring_enabled || false
       };
       setActiveTemplate(prev => ({ ...prev, items: [...prev.items, newItem] }));
   };
@@ -132,16 +135,75 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
           <div className="flex-grow overflow-y-auto pr-2">
             <h2 className="text-xl font-bold text-neutral mb-4">{isNew ? 'Create New Template' : 'Edit Template'}</h2>
             <div className="space-y-6">
-                <div>
-                    <label htmlFor="templateTitle" className="block text-sm font-medium text-gray-700">Template Title</label>
-                    <input 
-                        type="text" 
-                        id="templateTitle"
-                        value={activeTemplate.title}
-                        onChange={handleTitleChange}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                    />
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1">
+                        <label htmlFor="templateTitle" className="block text-sm font-medium text-gray-700">Template Title</label>
+                        <input 
+                            type="text" 
+                            id="templateTitle"
+                            value={activeTemplate.title}
+                            onChange={handleTitleChange}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                            placeholder="e.g., Monthly Maintenance Audit"
+                        />
+                    </div>
+                    <div className="flex items-center space-x-2 pt-6">
+                        <label className="flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={activeTemplate.scoring_enabled || false}
+                                onChange={(e) => setActiveTemplate(prev => ({ ...prev, scoring_enabled: e.target.checked }))}
+                                className="h-4 w-4 text-primary focus:ring-primary-focus border-gray-300 rounded"
+                            />
+                            <span className="ml-2 text-sm font-medium text-gray-700">Enable Scoring (0-3)</span>
+                        </label>
+                    </div>
                 </div>
+
+                {activeTemplate.scoring_enabled && (
+                    <div className="p-4 border border-primary/20 bg-primary/5 rounded-lg">
+                        <h3 className="text-md font-bold text-primary mb-3">Category Weights</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {Array.from(new Set(activeTemplate.items.map(i => i.category || 'Uncategorized'))).map(catName => {
+                                const setting = (activeTemplate.category_settings || []).find(s => s.name === catName);
+                                const weight = setting ? setting.weight : 1;
+                                return (
+                                    <div key={catName} className="flex items-center space-x-2 bg-white p-2 rounded border border-gray-200">
+                                        <span className="text-xs font-semibold text-gray-600 truncate flex-1">{catName}</span>
+                                        <div className="flex items-center">
+                                            <span className="text-[10px] text-gray-400 mr-1">Weight:</span>
+                                            <input 
+                                                type="number" 
+                                                min="1" 
+                                                step="0.1"
+                                                value={weight}
+                                                onChange={(e) => {
+                                                    const newWeight = parseFloat(e.target.value) || 1;
+                                                    setActiveTemplate(prev => {
+                                                        const currentSettings = prev.category_settings || [];
+                                                        const index = currentSettings.findIndex(s => s.name === catName);
+                                                        const newSettings = [...currentSettings];
+                                                        if (index > -1) {
+                                                            newSettings[index] = { ...newSettings[index], weight: newWeight };
+                                                        } else {
+                                                            newSettings.push({ name: catName, weight: newWeight });
+                                                        }
+                                                        return { ...prev, category_settings: newSettings };
+                                                    });
+                                                }}
+                                                className="w-16 px-1 py-0.5 border border-gray-300 rounded text-sm focus:ring-primary focus:border-primary"
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <p className="mt-2 text-[10px] text-gray-400 italic">
+                            * Weight per category will be used for final score calculation.
+                        </p>
+                    </div>
+                )}
+
                 <div>
                     <h3 className="text-lg font-semibold text-gray-800 mb-3">Questions</h3>
                     <div className="space-y-4">
@@ -166,7 +228,7 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 pl-9 pt-2">
                                     {/* Answer Type */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Answer Type</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
                                         <select
                                             value={item.type}
                                             onChange={(e) => handleItemChange(index, 'type', e.target.value as QuestionType)}
@@ -179,7 +241,35 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
                                             <option value="signature">Signature</option>
                                         </select>
                                     </div>
-                                    
+
+                                    {activeTemplate.scoring_enabled && (
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Scoring</label>
+                                        <div className="flex items-center h-[38px]">
+                                          <label className="flex items-center cursor-pointer">
+                                            <input
+                                              type="checkbox"
+                                              checked={item.scoring_enabled || false}
+                                              onChange={(e) => handleItemChange(index, 'scoring_enabled', e.target.checked)}
+                                              className="h-4 w-4 text-primary focus:ring-primary-focus border-gray-300 rounded"
+                                            />
+                                            <span className="ml-2 text-sm text-gray-600">Enable 0-3</span>
+                                          </label>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                                        <input
+                                            type="text"
+                                            value={item.category || ''}
+                                            onChange={(e) => handleItemChange(index, 'category', e.target.value)}
+                                            className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm shadow-sm focus:ring-primary focus:border-primary"
+                                            placeholder="e.g., Cleanliness"
+                                        />
+                                    </div>
+
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Evidence Type</label>
                                         <select
