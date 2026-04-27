@@ -16,6 +16,7 @@ const NEW_TEMPLATE: ChecklistTemplate = {
   id: '',
   title: 'New Checklist Template',
   items: [],
+  category_settings: [],
 };
 
 const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSave }) => {
@@ -160,12 +161,12 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
                     </div>
                 </div>
 
-                {activeTemplate.scoring_enabled && (
+                {activeTemplate?.scoring_enabled && (
                     <div className="p-4 border border-primary/20 bg-primary/5 rounded-lg">
                         <h3 className="text-md font-bold text-primary mb-3">Category Weights</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {Array.from(new Set(activeTemplate.items.map(i => i.category || 'Uncategorized'))).map(catName => {
-                                const setting = (activeTemplate.category_settings || []).find(s => s.name === catName);
+                            {Array.from(new Set((activeTemplate?.items || []).map(i => i?.category || 'Uncategorized'))).map(catName => {
+                                const setting = (activeTemplate?.category_settings || []).find(s => s?.name === catName);
                                 const weight = setting ? setting.weight : 1;
                                 return (
                                     <div key={catName} className="flex items-center space-x-2 bg-white p-2 rounded border border-gray-200">
@@ -180,8 +181,8 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
                                                 onChange={(e) => {
                                                     const newWeight = parseFloat(e.target.value) || 1;
                                                     setActiveTemplate(prev => {
-                                                        const currentSettings = prev.category_settings || [];
-                                                        const index = currentSettings.findIndex(s => s.name === catName);
+                                                        const currentSettings = prev?.category_settings || [];
+                                                        const index = currentSettings.findIndex(s => s?.name === catName);
                                                         const newSettings = [...currentSettings];
                                                         if (index > -1) {
                                                             newSettings[index] = { ...newSettings[index], weight: newWeight };
@@ -207,15 +208,15 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
                 <div>
                     <h3 className="text-lg font-semibold text-gray-800 mb-3">Questions</h3>
                     <div className="space-y-4">
-                        {activeTemplate.items.map((item, index) => (
-                            <div key={item.id} className="p-4 border rounded-lg bg-base-200/60 shadow-sm space-y-3">
+                        {(activeTemplate?.items || []).map((item, index) => (
+                            <div key={item?.id || index} className="p-4 border rounded-lg bg-base-200/60 shadow-sm space-y-3">
                                 {/* Row 1: Question Text and Delete Button */}
                                 <div className="flex items-center space-x-3">
                                     <span className="font-bold text-primary text-lg">{index + 1}.</span>
                                     <input
                                         type="text"
                                         placeholder="Enter question text..."
-                                        value={item.question}
+                                        value={item?.question || ''}
                                         onChange={(e) => handleItemChange(index, 'question', e.target.value)}
                                         className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
                                     />
@@ -230,7 +231,7 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
                                         <select
-                                            value={item.type}
+                                            value={item?.type || 'yes-no'}
                                             onChange={(e) => handleItemChange(index, 'type', e.target.value as QuestionType)}
                                             className="w-full px-2 py-1.5 border border-gray-300 bg-white rounded-md text-sm shadow-sm focus:ring-primary focus:border-primary"
                                         >
@@ -242,31 +243,32 @@ const TemplateEditorView: React.FC<TemplateEditorViewProps> = ({ templates, onSa
                                         </select>
                                     </div>
 
-                                    {activeTemplate.scoring_enabled && (
+                                    {activeTemplate?.scoring_enabled && (
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Scoring</label>
                                         <div className="flex items-center h-[38px]">
                                           <label className="flex items-center cursor-pointer">
                                             <input
                                               type="checkbox"
-                                              checked={item.scoring_enabled || false}
+                                              checked={item?.scoring_enabled || false}
                                               onChange={(e) => handleItemChange(index, 'scoring_enabled', e.target.checked)}
                                               className="h-4 w-4 text-primary focus:ring-primary-focus border-gray-300 rounded"
                                             />
-                                            <span className="ml-2 text-sm text-gray-600">Enable 0-3</span>
+                                            <span className="ml-2 text-sm text-gray-600">Enable score for this item</span>
                                           </label>
                                         </div>
                                       </div>
                                     )}
 
+                                    {/* Category */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                                         <input
                                             type="text"
-                                            value={item.category || ''}
+                                            placeholder="e.g., General, Safety..."
+                                            value={item?.category || ''}
                                             onChange={(e) => handleItemChange(index, 'category', e.target.value)}
                                             className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm shadow-sm focus:ring-primary focus:border-primary"
-                                            placeholder="e.g., Cleanliness"
                                         />
                                     </div>
 

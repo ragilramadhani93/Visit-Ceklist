@@ -273,8 +273,8 @@ const App: React.FC = () => {
       const [usersRes, checklistsRes, tasksRes, templatesRes, outletsRes] = await Promise.all([
         fetchAll('users'), fetchAll('checklists'), fetchAll('tasks'), fetchAll('checklist_templates'), fetchAll('outlets')
       ]);
-      if (checklistsRes.data) checklistsRes.data = processJSON(checklistsRes.data, ['items']);
-      if (templatesRes.data) templatesRes.data = processJSON(templatesRes.data, ['items']);
+      if (checklistsRes.data) checklistsRes.data = processJSON(checklistsRes.data, ['items', 'category_settings']);
+      if (templatesRes.data) templatesRes.data = processJSON(templatesRes.data, ['items', 'category_settings']);
 
       if (usersRes.error) throw usersRes.error;
       if (checklistsRes.error) throw checklistsRes.error;
@@ -289,6 +289,7 @@ const App: React.FC = () => {
       const processedChecklists = (checklistsRes.data || []).map((c: any) => ({
         ...c,
         items: Array.isArray(c.items) ? c.items : [],
+        category_settings: Array.isArray(c.category_settings) ? c.category_settings : [],
       }));
 
       setUsers(usersRes.data as User[]);
@@ -297,6 +298,7 @@ const App: React.FC = () => {
       const processedTemplates = (templatesRes.data || []).map((t: any) => ({
         ...t,
         items: Array.isArray(t.items) ? t.items : [],
+        category_settings: Array.isArray(t.category_settings) ? t.category_settings : [],
       }));
       setChecklistTemplates(processedTemplates as unknown as ChecklistTemplate[]);
       setOutlets(outletsRes.data as Outlet[]);
