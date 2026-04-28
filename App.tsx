@@ -261,7 +261,19 @@ const App: React.FC = () => {
     try {
       const processJSON = (rows: any[], cols: string[]) => rows.map((r: any) => {
         const newR = { ...r };
-        cols.forEach(c => { if (typeof newR[c] === 'string') { try { newR[c] = JSON.parse(newR[c]); } catch { } } });
+        cols.forEach(c => {
+          if (typeof newR[c] === 'string') {
+            try {
+              newR[c] = JSON.parse(newR[c]);
+            } catch {
+              // If JSON parsing fails, treat as a single string or empty array
+              newR[c] = c === 'whatsapp_number' ? [newR[c]] : newR[c];
+            }
+          } else if (c === 'whatsapp_number' && !Array.isArray(newR[c])) {
+            // Ensure whatsapp_number is always an array if not null
+            newR[c] = newR[c] ? [newR[c]] : null;
+          }
+        });
         return newR;
       });
 
@@ -275,6 +287,7 @@ const App: React.FC = () => {
       ]);
       if (checklistsRes.data) checklistsRes.data = processJSON(checklistsRes.data, ['items', 'category_settings']);
       if (templatesRes.data) templatesRes.data = processJSON(templatesRes.data, ['items', 'category_settings']);
+      if (outletsRes.data) outletsRes.data = processJSON(outletsRes.data, ['whatsapp_number']);
 
       if (usersRes.error) throw usersRes.error;
       if (checklistsRes.error) throw checklistsRes.error;
@@ -524,7 +537,7 @@ const App: React.FC = () => {
     try {
       const keys = Object.keys(newOutlet).join(', ');
       const placeholders = Object.keys(newOutlet).map(() => '?').join(', ');
-      const values = Object.values(newOutlet);
+      const values = Object.values(newOutlet).map(value => Array.isArray(value) ? JSON.stringify(value) : value);
       const newId = crypto.randomUUID();
       await turso.execute({ sql: `INSERT INTO outlets (id, ${keys}) VALUES (?, ${placeholders})`, args: [newId, ...values] as (string | number | boolean | null)[] });
       const res = await turso.execute({ sql: 'SELECT * FROM outlets WHERE id = ?', args: [newId] });
@@ -543,7 +556,7 @@ const App: React.FC = () => {
     let error: any = null;
     try {
       const sets = Object.keys(updateData).map(k => `${k} = ?`).join(', ');
-      const values = Object.values(updateData);
+      const values = Object.values(updateData).map(value => Array.isArray(value) ? JSON.stringify(value) : value);
       await turso.execute({ sql: `UPDATE outlets SET ${sets} WHERE id = ?`, args: [...values, id] as (string | number | boolean | null)[] });
       const res = await turso.execute({ sql: 'SELECT * FROM outlets WHERE id = ?', args: [id] });
       data = res.rows[0];
@@ -567,6 +580,32 @@ const App: React.FC = () => {
       }
     }
   };
+
+  const handleBulkUploadOutlets = useCallback(async (newOutlets: Omit<Outlet, 'id'>[], updatedOutlets: Outlet[]) => {
+    let error: any = null;
+    try {
+      // Insert new outlets
+      for (const newOutlet of newOutlets) {
+        const keys = Object.keys(newOutlet).join(', ');
+        const placeholders = Object.keys(newOutlet).map(() => '?').join(', ');
+        const values = Object.values(newOutlet).map(value => Array.isArray(value) ? JSON.stringify(value) : value);
+        const newId = crypto.randomUUID();
+        await turso.execute({ sql: `INSERT INTO outlets (id, ${keys}) VALUES (?, ${placeholders})`, args: [newId, ...values] as (string | number | boolean | null)[] });
+      }
+
+      // Update existing outlets
+      for (const updatedOutlet of updatedOutlets) {
+        const { id, ...updateData } = updatedOutlet;
+        const sets = Object.keys(updateData).map(k => `${k} = ?`).join(', ');
+        const values = Object.values(updateData).map(value => Array.isArray(value) ? JSON.stringify(value) : value);
+        await turso.execute({ sql: `UPDATE outlets SET ${sets} WHERE id = ?`, args: [...values, id] as (string | number | boolean | null)[] });
+      }
+      await fetchData(); // Re-fetch all data to update the UI
+    } catch (e: any) {
+      error = e;
+      throw new Error(`Bulk upload failed: ${error.message}`);
+    }
+  }, [fetchData]);
 
   const handleCreateAssignments = async (auditorId: string, outletIds: string[], templateIds: string[], dueDate: string) => {
     const newChecklists: Omit<Checklist, 'id' | 'created_at'>[] = [];
@@ -797,21 +836,39 @@ const App: React.FC = () => {
       if (reportUrl) {
         updateProgress("Sending report via WhatsApp...");
         try {
-          const resWa = await turso.execute('SELECT phone_number FROM whatsapp_recipients');
-          const targetNumbers = resWa.rows.map((r: any) => r.phone_number as string);
+          // Find the outlet associated with the checklist
+          const targetOutlet = outlets.find(o => o.name === checklistForDb.location);
           
-          if (targetNumbers.length > 0) {
-            const waMessage = `≡ƒôï *Laporan Audit Baru* ≡ƒôï\n\n*Outlet:* ${checklistForDb.outletName}\n*Auditor:* ${currentUser?.name || currentUser?.email}\n*Waktu:* ${new Date().toLocaleString('id-ID')}\n\nLaporan lengkap dapat diunduh pada tautan berikut.`;
-            const success = await sendWhatsAppMessage({
+          if (targetOutlet && targetOutlet.whatsapp_number && targetOutlet.whatsapp_number.length > 0) {
+            const targetNumbers = targetOutlet.whatsapp_number;
+            const waMessage = `🔔 *Laporan Audit Baru* 🔔\n\n*Outlet:* ${targetOutlet.name}\n*Auditor:* ${currentUser?.name || currentUser?.email}\n*Waktu:* ${new Date().toLocaleString('id-ID')}\n\nLaporan lengkap dapat diunduh pada tautan berikut.`;
+            
+            // Fetch token from settings
+            let dbToken = undefined;
+            try {
+              const settingsRes = await turso.execute({
+                sql: 'SELECT value FROM settings WHERE key = ?',
+                args: ['fonnte_token']
+              });
+              if (settingsRes.rows.length > 0) {
+                dbToken = settingsRes.rows[0].value as string;
+              }
+            } catch (e) {
+              console.error("Failed to fetch Fonnte token from DB:", e);
+            }
+
+            await sendWhatsAppMessage({
               targets: targetNumbers,
               message: waMessage,
-              fileUrl: reportUrl
+              fileUrl: reportUrl,
+              token: dbToken
             });
-            if (!success) waStatusMessage = `\n(Warning: Failed to send WhatsApp notification. Please check Fonnte config.)`;
+          } else {
+            waStatusMessage = `\n(Peringatan: Tidak dapat mengirim notifikasi WhatsApp. Nomor WhatsApp untuk outlet '${checklistForDb.location}' tidak ditemukan atau tidak valid.)`;
           }
         } catch (err: any) {
           console.error("Failed to trigger WhatsApp notification:", err);
-          waStatusMessage = `\n(Warning: Error triggering WhatsApp notification)`;
+          waStatusMessage = `\n(Peringatan: Gagal mengirim notifikasi WhatsApp. Error: ${err.message || 'Unknown error'})`;
         }
       }
 
@@ -877,12 +934,14 @@ const App: React.FC = () => {
     try {
       const updateDataDb = { ...updates };
       if (updateDataDb.items) updateDataDb.items = JSON.stringify(updateDataDb.items) as any;
+      if (updateDataDb.category_settings) updateDataDb.category_settings = JSON.stringify(updateDataDb.category_settings) as any;
       const sets = Object.keys(updateDataDb).map(k => `${k} = ?`).join(', ');
       const values = Object.values(updateDataDb);
       await turso.execute({ sql: `UPDATE checklists SET ${sets} WHERE id = ?`, args: [...values, checklistId] as (string | number | boolean | null)[] });
       const res = await turso.execute({ sql: 'SELECT * FROM checklists WHERE id = ?', args: [checklistId] });
       data = res.rows[0];
       if (data && typeof data.items === 'string') data.items = JSON.parse(data.items);
+      if (data && typeof data.category_settings === 'string') data.category_settings = JSON.parse(data.category_settings);
     } catch (e: any) { error = e; }
     if (error) {
       alert(`Error updating assignment: ${error.message}`);
@@ -986,7 +1045,7 @@ const App: React.FC = () => {
       case 'templates':
         return <TemplateEditorView templates={checklistTemplates} onSave={handleSaveTemplate} />;
       case 'outlet_management':
-        return <OutletManagementView outlets={outlets} users={users} onAddOutlet={handleAddOutlet} onUpdateOutlet={handleUpdateOutlet} onDeleteOutlet={handleDeleteOutlet} />;
+        return <OutletManagementView outlets={outlets} users={users} onAddOutlet={handleAddOutlet} onUpdateOutlet={handleUpdateOutlet} onDeleteOutlet={handleDeleteOutlet} onBulkUploadOutlets={handleBulkUploadOutlets} />;
       case 'assignments':
         return <AssignmentView users={users} outlets={outlets} templates={checklistTemplates} checklists={checklists} onCreateAssignments={handleCreateAssignments} onUpdateAssignment={handleUpdateAssignment} onCancelAssignment={handleCancelAssignment} onCancel={() => safeSetView('admin_dashboard')} />;
       default:

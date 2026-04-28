@@ -30,10 +30,23 @@ async function createSchema() {
       name TEXT NOT NULL,
       address TEXT,
       manager_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      whatsapp_number TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     )
   `);
     console.log("✅ outlets table created");
+
+    // Add whatsapp_number column if it doesn't exist
+    await turso.execute(`
+    ALTER TABLE outlets ADD COLUMN whatsapp_number TEXT;
+  `).catch(e => {
+        if (e.message.includes("duplicate column name")) {
+            console.log("whatsapp_number column already exists in outlets table, skipping.");
+        } else {
+            throw e;
+        }
+    });
+    console.log("✅ whatsapp_number column ensured in outlets table");
 
     // 3. CHECKLIST_TEMPLATES Table
     await turso.execute(`

@@ -100,6 +100,7 @@ export interface Outlet {
   name: string;
   address: string | null;
   manager_id: string | null;
+  whatsapp_number: string[] | null; // New field for WhatsApp number, now an array
   latitude?: number | null;
   longitude?: number | null;
   radius?: number | null;

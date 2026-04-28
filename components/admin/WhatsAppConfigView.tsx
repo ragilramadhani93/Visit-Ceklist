@@ -18,14 +18,46 @@ const WhatsAppConfigView: React.FC = () => {
   const [recipients, setRecipients] = useState<WhatsAppRecipient[]>([]);
   const [newNumber, setNewNumber] = useState('');
   const [newName, setNewName] = useState('');
+  const [fonnteToken, setFonnteToken] = useState('');
   const [loading, setLoading] = useState(false);
+  const [savingToken, setSavingToken] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [testEmailLoading, setTestEmailLoading] = useState(false);
+  const [testWSLoading, setTestWSLoading] = useState(false);
 
   useEffect(() => {
     fetchRecipients();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await turso.execute({
+        sql: 'SELECT value FROM settings WHERE key = ?',
+        args: ['fonnte_token']
+      });
+      if (res.rows.length > 0) {
+        setFonnteToken(res.rows[0].value as string);
+      }
+    } catch (e) {
+      console.error("Failed to fetch settings:", e);
+    }
+  };
+
+  const handleSaveToken = async () => {
+    setSavingToken(true);
+    try {
+      await turso.execute({
+        sql: 'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        args: ['fonnte_token', fonnteToken]
+      });
+      alert('Fonnte token saved successfully!');
+    } catch (e: any) {
+      setErrorMessage(`Failed to save token: ${e.message}`);
+    } finally {
+      setSavingToken(false);
+    }
+  };
 
   const fetchRecipients = async () => {
     let data: any = null;
@@ -44,7 +76,7 @@ const WhatsAppConfigView: React.FC = () => {
   };
 
   const handleTestWhatsApp = async () => {
-    setTestEmailLoading(true);
+    setTestWSLoading(true);
     setErrorMessage(null);
     try {
       if (recipients.length === 0) {
@@ -52,21 +84,18 @@ const WhatsAppConfigView: React.FC = () => {
       }
 
       const targets = recipients.map(r => r.phone_number);
-      const success = await sendWhatsAppMessage({
+      await sendWhatsAppMessage({
         targets,
-        message: '👋 Halo! Ini adalah pesan uji coba dari sistem Field Ops Checklist Anda. Integrasi Fonnte WhatsApp berhasil!'
+        message: '👋 Halo! Ini adalah pesan uji coba dari sistem Field Ops Checklist Anda. Integrasi Fonnte WhatsApp berhasil!',
+        token: fonnteToken
       });
       
-      if (success) {
-        alert(`Test message successfully sent to ${targets.length} recipients!`);
-      } else {
-        throw new Error('Fonnte API returned an error or token is missing.');
-      }
+      alert(`Test message successfully sent to ${targets.length} recipients!`);
     } catch (err: any) {
       console.error("Test message failed:", err);
       setErrorMessage(`Test message failed: ${err.message || JSON.stringify(err)}`);
     } finally {
-      setTestEmailLoading(false);
+      setTestWSLoading(false);
     }
   };
 
@@ -122,13 +151,43 @@ const WhatsAppConfigView: React.FC = () => {
         <h2 className="text-2xl font-bold text-neutral">WhatsApp Notification Config</h2>
         <Button
           onClick={handleTestWhatsApp}
-          disabled={testEmailLoading}
+          disabled={testWSLoading}
           variant="secondary"
           className="!py-2 !px-4 text-sm"
         >
-          {testEmailLoading ? 'Sending...' : 'Send Test WS'}
+          {testWSLoading ? 'Sending...' : 'Send Test WS'}
         </Button>
       </div>
+
+      <Card>
+        <div className="mb-4">
+          <h3 className="text-lg font-bold text-neutral mb-2">Fonnte API Configuration</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Enter your Fonnte API Token to enable WhatsApp notifications. Get it from <a href="https://fonnte.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">fonnte.com</a>.
+          </p>
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <label className="label">
+                <span className="label-text">Fonnte API Token</span>
+              </label>
+              <input
+                type="password"
+                className="input input-bordered w-full"
+                placeholder="Enter your Fonnte token"
+                value={fonnteToken}
+                onChange={(e) => setFonnteToken(e.target.value)}
+              />
+            </div>
+            <Button
+              onClick={handleSaveToken}
+              disabled={savingToken || !fonnteToken}
+              className="mb-0"
+            >
+              {savingToken ? 'Saving...' : 'Save Token'}
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       <Card>
         <div className="mb-6">

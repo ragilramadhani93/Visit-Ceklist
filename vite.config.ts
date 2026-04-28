@@ -20,24 +20,41 @@ export default defineConfig(({ mode }) => {
         name: 'local-r2-upload-endpoint',
         configureServer(server) {
           server.middlewares.use('/api/upload', (req, res, next) => {
-            if (req.method !== 'POST') {
+            if (req.method !== 'POST' && req.method !== 'PUT') {
               next();
               return;
             }
 
-            let rawBody = '';
+            const chunks: any[] = [];
             req.on('data', chunk => {
-              rawBody += chunk;
+              chunks.push(chunk);
             });
             req.on('end', async () => {
               try {
-                const parsedBody = rawBody ? JSON.parse(rawBody) : undefined;
+                const rawBody = Buffer.concat(chunks);
+                let parsedBody = undefined;
+                
+                if (req.method === 'POST') {
+                  try {
+                    parsedBody = JSON.parse(rawBody.toString('utf8'));
+                  } catch (e) {
+                    // Ignore parse error for POST if body is empty or not JSON
+                  }
+                }
+
+                // Parse query params for PUT fallback
+                const url = new URL(req.url || '', `http://${req.headers.host}`);
+                const query: Record<string, string> = {};
+                url.searchParams.forEach((value, key) => {
+                  query[key] = value;
+                });
+
                 const { status, payload } = await handleUploadRequest(req.method, parsedBody, {
                   accountId: env.VITE_R2_ACCOUNT_ID,
                   accessKeyId: env.VITE_R2_ACCESS_KEY_ID,
                   secretAccessKey: env.VITE_R2_SECRET_ACCESS_KEY,
                   publicUrlBase: env.VITE_R2_PUBLIC_URL,
-                });
+                }, query, rawBody);
 
                 res.statusCode = status;
                 res.setHeader('Content-Type', 'application/json');

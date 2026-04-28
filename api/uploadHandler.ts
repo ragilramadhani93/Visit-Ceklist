@@ -90,7 +90,44 @@ export async function generatePresignedUrl(config: Required<UploadConfig>, bucke
     return `${endpoint}?${sortedQuery}&X-Amz-Signature=${signature}`;
 }
 
-export async function handleUploadRequest(method: string | undefined, body: UploadRequestBody | undefined, config: UploadConfig): Promise<UploadResponse> {
+export async function handleUploadRequest(method: string | undefined, body: UploadRequestBody | undefined, config: UploadConfig, query?: Record<string, string | string[] | undefined>, rawBody?: Buffer): Promise<UploadResponse> {
+    if (method === 'PUT') {
+        const fileName = typeof query?.fileName === 'string' ? query.fileName.replace(/^\/+/, '').trim() : '';
+        const bucket = typeof query?.bucket === 'string' ? query.bucket.trim() : '';
+        const contentType = typeof query?.contentType === 'string' && query.contentType ? query.contentType : 'application/octet-stream';
+
+        if (!fileName || !bucket) {
+            return { status: 400, payload: { error: 'Missing fileName or bucket query params' } };
+        }
+        if (!config.accountId || !config.accessKeyId || !config.secretAccessKey || !config.publicUrlBase) {
+            return { status: 500, payload: { error: 'R2 configuration incomplete on server' } };
+        }
+
+        if (!rawBody) {
+            return { status: 400, payload: { error: 'Missing file body' } };
+        }
+
+        try {
+            const presignedUrl = await generatePresignedUrl(config as Required<UploadConfig>, bucket, fileName, contentType);
+            const uploadResp = await fetch(presignedUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': contentType },
+                body: rawBody.buffer.slice(rawBody.byteOffset, rawBody.byteOffset + rawBody.byteLength) as ArrayBuffer,
+            });
+
+            if (!uploadResp.ok) {
+                const errText = await uploadResp.text();
+                return { status: uploadResp.status, payload: { error: `R2 upload failed: ${errText}` } };
+            }
+
+            const base = config.publicUrlBase.endsWith('/') ? config.publicUrlBase.slice(0, -1) : config.publicUrlBase;
+            const publicUrl = `${base}/${encodeKey(fileName)}`;
+            return { status: 200, payload: { publicUrl, uploadedVia: 'server-binary-local' } };
+        } catch (error: any) {
+            return { status: 500, payload: { error: error?.message || 'Local fallback upload failed' } };
+        }
+    }
+
     if (method !== 'POST') {
         return { status: 405, payload: { error: 'Method not allowed' } };
     }

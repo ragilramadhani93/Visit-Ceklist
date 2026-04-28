@@ -4,10 +4,11 @@ export interface WhatsAppMessageOptions {
   targets: string[]; // Array of phone numbers
   message: string;
   fileUrl?: string; // Optional URL to a file (e.g. PDF report)
+  token?: string; // Optional Fonnte token
 }
 
-export const sendWhatsAppMessage = async ({ targets, message, fileUrl }: WhatsAppMessageOptions): Promise<boolean> => {
-  const token = (import.meta as any).env?.VITE_FONNTE_TOKEN;
+export const sendWhatsAppMessage = async ({ targets, message, fileUrl, token: providedToken }: WhatsAppMessageOptions): Promise<boolean> => {
+  const token = providedToken || (import.meta as any).env?.VITE_FONNTE_TOKEN;
   
   if (!token) {
     console.error('[WhatsApp Client] Fonnte token is missing from environment variables.');
@@ -39,16 +40,20 @@ export const sendWhatsAppMessage = async ({ targets, message, fileUrl }: WhatsAp
     });
 
     const responseData = await response.json();
+    
+    // Some Fonnte API responses use 'status' as a boolean, others as a string
+    const isSuccess = responseData.status === true || responseData.status === 'true';
 
-    if (responseData.status) {
+    if (isSuccess) {
       console.log('[WhatsApp Client] Message sent successfully:', responseData);
       return true;
     } else {
-      console.error('[WhatsApp Client] Fonnte API Error:', responseData.reason || responseData);
-      return false;
+      const errorMsg = responseData.reason || responseData.message || JSON.stringify(responseData);
+      console.error('[WhatsApp Client] Fonnte API Error:', errorMsg);
+      throw new Error(errorMsg);
     }
-  } catch (error) {
-    console.error('[WhatsApp Client] Network Error while sending WhatsApp message:', error);
-    return false;
+  } catch (error: any) {
+    console.error('[WhatsApp Client] Error:', error.message || error);
+    throw error;
   }
 };

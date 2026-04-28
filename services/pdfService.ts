@@ -424,7 +424,14 @@ export const generateFindingsReportPDF = async (
     body,
     theme: 'striped',
     styles: { fontSize: 9, cellPadding: 2 },
-    headStyles: { fillColor: [128, 0, 0] },
+    headStyles: { fillColor: [128, 0, 0], halign: 'center' },
+    columnStyles: {
+        0: { cellWidth: 35 }, // Title
+        1: { cellWidth: 25 }, // Location
+        2: { cellWidth: 25 }, // Audit
+        9: { cellWidth: 30, minCellHeight: 30 }, // Evidence
+        10: { cellWidth: 30, minCellHeight: 30 }, // Proof of Fix
+    },
     didDrawCell: (data: any) => {
       if (data.section === 'body' && (data.column.index === 9 || data.column.index === 10)) {
         const rowIdx = data.row.index;
@@ -434,7 +441,7 @@ export const generateFindingsReportPDF = async (
           const padding = 2;
           const availableWidth = data.cell.width - (padding * 2);
           const availableHeight = data.cell.height - (padding * 2);
-          const size = Math.min(24, availableWidth, availableHeight);
+          const size = Math.min(28, availableWidth, availableHeight);
           const x = data.cell.x + (data.cell.width - size) / 2;
           const y = data.cell.y + (data.cell.height - size) / 2;
           try {
