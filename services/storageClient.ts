@@ -7,8 +7,15 @@ const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL as string | undef
 
 // Helper to get absolute API URL
 const getApiUrl = (path: string): string => {
-    const base = apiBaseUrl || '';
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    
+    // In production/Vercel, always prefer relative paths for same-origin requests
+    // to avoid CORS and "Failed to fetch" issues on mobile browsers
+    if (typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname === 'localhost')) {
+        return cleanPath;
+    }
+
+    const base = apiBaseUrl || '';
     return `${base}${cleanPath}`;
 };
 
