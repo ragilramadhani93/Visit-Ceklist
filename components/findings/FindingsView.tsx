@@ -7,6 +7,7 @@ import { generateFindingsReportPDF } from '../../services/pdfService';
 import Button from '../shared/Button';
 import ResolveFindingModal from './ResolveFindingModal';
 import ImageModal from '../shared/ImageModal';
+import { normalizeR2Url } from '../../services/storageClient';
 
 interface EnrichedFinding extends Task {
   location?: string | null;
@@ -159,7 +160,7 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; users: User[]; canAssign
                                     <span className="text-xs font-bold text-gray-500 block mb-1 text-center">EVIDENCE</span>
                                     {evidenceIsVideo ? (
                                         <video
-                                            src={finding.photo!}
+                                            src={normalizeR2Url(finding.photo!)}
                                             controls
                                             playsInline
                                             muted
@@ -167,8 +168,8 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; users: User[]; canAssign
                                             className="rounded-lg object-cover w-full h-36 md:h-full bg-black"
                                         />
                                     ) : (
-                                        <button onClick={() => onImageClick(finding.photo!)} className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group">
-                                            <img src={finding.photo!} alt="Finding evidence" className="rounded-lg object-cover w-full h-36 md:h-full cursor-pointer transition-transform group-hover:scale-105" />
+                                        <button onClick={() => onImageClick(normalizeR2Url(finding.photo!))} className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group">
+                                            <img src={normalizeR2Url(finding.photo!)} alt="Finding evidence" className="rounded-lg object-cover w-full h-36 md:h-full cursor-pointer transition-transform group-hover:scale-105" />
                                         </button>
                                     )}
                                 </div>
@@ -176,8 +177,8 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; users: User[]; canAssign
                             {hasProof && (
                                 <div className="flex flex-col">
                                     <span className="text-xs font-bold text-gray-500 block mb-1 text-center">PROOF OF FIX</span>
-                                    <button onClick={() => onImageClick(finding.proof_of_fix!)} className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group">
-                                        <img src={finding.proof_of_fix} alt="Proof of fix" className="rounded-lg object-cover w-full h-36 md:h-full cursor-pointer transition-transform group-hover:scale-105" />
+                                    <button onClick={() => onImageClick(normalizeR2Url(finding.proof_of_fix!))} className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group">
+                                        <img src={normalizeR2Url(finding.proof_of_fix!)} alt="Proof of fix" className="rounded-lg object-cover w-full h-36 md:h-full cursor-pointer transition-transform group-hover:scale-105" />
                                     </button>
                                 </div>
                             )}
