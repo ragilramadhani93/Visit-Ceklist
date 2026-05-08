@@ -8,13 +8,20 @@ import { Checklist, User, Task, TaskPriority } from '../types';
 // to bypass static type checking. This is consistent with how other plugin properties
 // (like `lastAutoTable`) are already accessed in this file.
 
-const getImageAsDataURI = async (source: string, mimeType: string = 'image/jpeg'): Promise<string | null> => {
+const getImageAsDataURI = async (source: string, mimeType: string = 'image/jpeg', timeoutMs = 5000): Promise<string | null> => {
     if (!source) return null;
     if (!source.startsWith('http') && source.length > 200) {
         return `data:${mimeType};base64,${source}`;
     }
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-        const response = await fetch(`${source}?t=${new Date().getTime()}`);
+        const response = await fetch(`${source}?t=${new Date().getTime()}`, {
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
         if (!response.ok) {
             throw new Error(`Failed to fetch image: ${response.statusText}`);
         }
@@ -26,6 +33,7 @@ const getImageAsDataURI = async (source: string, mimeType: string = 'image/jpeg'
             reader.readAsDataURL(blob);
         });
     } catch (error) {
+        clearTimeout(timeoutId);
         console.error(`Could not get image as data URI from ${source}:`, error);
         return null;
     }
@@ -46,38 +54,54 @@ const getResizedImageForPDF = async (
     quality = 0.75,
     mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg',
     fillBackground?: string,
+    timeoutMs = 8000
 ): Promise<string | null> => {
-    const dataUri = await getImageAsDataURI(source, mimeType);
-    if (!dataUri) return null;
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-            const ratio = Math.min(maxPx / img.width, maxPx / img.height, 1);
-            const w = Math.round(img.width * ratio);
-            const h = Math.round(img.height * ratio);
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) { resolve(dataUri); return; }
+    try {
+        const dataUri = await getImageAsDataURI(source, mimeType, timeoutMs - 2000);
+        if (!dataUri) return null;
+        
+        return await new Promise((resolve) => {
+            const img = new Image();
+            const timeout = setTimeout(() => {
+                img.src = ""; // Stop loading
+                resolve(null);
+            }, timeoutMs);
 
-            if (fillBackground) {
-                ctx.fillStyle = fillBackground;
-                ctx.fillRect(0, 0, w, h);
-            }
+            img.onload = () => {
+                clearTimeout(timeout);
+                const ratio = Math.min(maxPx / img.width, maxPx / img.height, 1);
+                const w = Math.round(img.width * ratio);
+                const h = Math.round(img.height * ratio);
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) { resolve(dataUri); return; }
 
-            ctx.drawImage(img, 0, 0, w, h);
+                if (fillBackground) {
+                    ctx.fillStyle = fillBackground;
+                    ctx.fillRect(0, 0, w, h);
+                }
 
-            if (mimeType === 'image/png') {
-                resolve(canvas.toDataURL('image/png'));
-                return;
-            }
+                ctx.drawImage(img, 0, 0, w, h);
 
-            resolve(canvas.toDataURL('image/jpeg', quality));
-        };
-        img.onerror = () => resolve(dataUri);
-        img.src = dataUri;
-    });
+                if (mimeType === 'image/png') {
+                    resolve(canvas.toDataURL('image/png'));
+                    return;
+                }
+
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = () => {
+                clearTimeout(timeout);
+                resolve(null);
+            };
+            img.src = dataUri;
+        });
+    } catch (e) {
+        console.error("Error in getResizedImageForPDF:", e);
+        return null;
+    }
 };
 
 
@@ -181,19 +205,32 @@ export const generateAuditReportPDF = async (
     yPos += 5;
 
     // Pre-fetch all item images to be embedded in the table
-    const itemImages = await Promise.all(
-      itemsArr.map(async item => {
-        if (!item) return [];
+    // Optimization: Process sequentially or in small batches to avoid device hang/memory spikes
+    const itemImages: (string | null)[][] = [];
+    for (let i = 0; i < itemsArr.length; i++) {
+        const item = itemsArr[i];
+        if (!item) {
+            itemImages.push([]);
+            continue;
+        }
+
+        const images: (string | null)[] = [];
         if (item.evidenceType === 'video') {
             if (imageOverrides && imageOverrides[item.id]) {
                 const uri = await getResizedImageForPDF(imageOverrides[item.id]);
-                return uri ? [uri] : [];
+                if (uri) images.push(uri);
             }
-            return [];
+        } else if (item.photoEvidence && Array.isArray(item.photoEvidence)) {
+            // Process photos for this item sequentially
+            for (const photoSrc of item.photoEvidence) {
+                if (photoSrc) {
+                    const uri = await getResizedImageForPDF(photoSrc);
+                    if (uri) images.push(uri);
+                }
+            }
         }
-        return Promise.all((item.photoEvidence || []).map(photoSrc => getResizedImageForPDF(photoSrc || '')));
-      })
-    );
+        itemImages.push(images);
+    }
 
     const tableData = itemsArr.map((item, index) => {
         if (!item) return [index + 1, '', '', 'N/A', '', ''];
