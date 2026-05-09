@@ -3,6 +3,10 @@
     "api/upload.ts": {
       "memory": 1024,
       "maxDuration": 30
+    },
+    "api/report-download.ts": {
+      "memory": 512,
+      "maxDuration": 15
     }
   }
 }
