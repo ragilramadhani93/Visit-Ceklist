@@ -47,7 +47,7 @@ async function generatePresignedUrl(config: Required<UploadConfig>, bucket: stri
         'X-Amz-Credential': credential,
         'X-Amz-Date': amzDate,
         'X-Amz-Expires': String(expiresIn),
-        'X-Amz-SignedHeaders': 'content-type;host',
+        'X-Amz-SignedHeaders': 'host', // For GET downloads, only sign host
     });
 
     const sortedQuery = Array.from(queryParams.entries())
@@ -55,8 +55,8 @@ async function generatePresignedUrl(config: Required<UploadConfig>, bucket: stri
         .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
         .join('&');
 
-    const canonicalHeaders = `content-type:${contentType}\nhost:${host}\n`;
-    const signedHeaders = 'content-type;host';
+    const canonicalHeaders = `host:${host}\n`;
+    const signedHeaders = 'host';
 
     const canonicalRequest = [
         'GET', // Reports are downloaded via GET
