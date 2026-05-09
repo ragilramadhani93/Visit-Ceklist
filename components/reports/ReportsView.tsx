@@ -12,6 +12,15 @@ const ReportsView: React.FC<ReportsViewProps> = ({ checklists, users }) => {
   const userMap = useMemo(() => new Map(users.map(user => [user.id, user])), [users]);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
+  // Helper to get API URL (prefers relative path in production/Vercel)
+  const getApiUrl = (path: string): string => {
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    if (typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname === 'localhost')) {
+      return cleanPath;
+    }
+    return `${apiBaseUrl}${cleanPath}`;
+  };
+
   const completedAudits = useMemo(() => {
     return checklists
       .filter(c => c.status === 'completed' && c.report_url)
@@ -24,15 +33,29 @@ const ReportsView: React.FC<ReportsViewProps> = ({ checklists, users }) => {
     setDownloadingId(audit.id);
     try {
       // Request presigned URL from server
-      const response = await fetch(`${apiBaseUrl}/api/report-download`, {
+      const response = await fetch(getApiUrl('/api/report-download'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reportPath: audit.report_url }),
       });
 
+      const contentType = response.headers.get('content-type');
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to get download link');
+        let errorMessage = 'Failed to get download link';
+        if (contentType && contentType.includes('application/json')) {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } else {
+          const text = await response.text();
+          console.error('Server error (HTML):', text);
+        }
+        throw new Error(errorMessage);
+      }
+
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Unexpected response format:', text);
+        throw new Error('Server returned invalid response format. Please try again later.');
       }
 
       const { presignedUrl } = await response.json();
