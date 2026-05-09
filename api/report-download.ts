@@ -1,28 +1,41 @@
 import { generatePresignedUrl, UploadConfig } from './uploadHandler';
 
-// Extract bucket and path from old custom domain URL
+// Extract bucket and path from URL
 export function parseReportUrl(url: string): { bucket: string; path: string } | null {
     try {
-        // Handle old custom domain: https://pub-9d01db2ebda64069a7e7fd1f530e753e.r2.dev/reports/...
-        if (url.includes('pub-9d01db2ebda64069a7e7fd1f530e753e.r2.dev')) {
-            const path = new URL(url).pathname.substring(1); // Remove leading slash
-            return { bucket: 'field-ops-photos', path };
+        const urlObj = new URL(url);
+        
+        // 1. Handle custom domains (any r2.dev or mapped domain)
+        // If it's a known R2 public bucket URL or custom domain, the path is everything after the first slash
+        if (url.includes('r2.dev') || url.includes('vercel.app') || !url.includes('cloudflarestorage.com')) {
+            const path = urlObj.pathname.substring(1); // Remove leading slash
+            // Default bucket if not specified in hostname
+            return { bucket: process.env.VITE_R2_BUCKET_NAME || 'field-ops-photos', path };
         }
 
-        // Handle standard R2 URL: https://field-ops-photos.dfcb9a70877400b4f29c4e0f79da30e2.r2.cloudflarestorage.com/reports/...
+        // 2. Handle standard R2 API URL: https://<bucket>.<accountid>.r2.cloudflarestorage.com/<path>
         if (url.includes('r2.cloudflarestorage.com')) {
-            const urlObj = new URL(url);
-            const match = urlObj.hostname.match(/^([a-z0-9-]+)\.dfcb9a70877400b4f29c4e0f79da30e2\.r2\.cloudflarestorage\.com$/);
-            if (match) {
-                const bucket = match[1];
-                const path = urlObj.pathname.substring(1); // Remove leading slash
+            const parts = urlObj.hostname.split('.');
+            if (parts.length >= 4) {
+                const bucket = parts[0];
+                const path = urlObj.pathname.substring(1);
                 return { bucket, path };
             }
+        }
+
+        // Fallback: just try to get the path
+        const fallbackPath = urlObj.pathname.substring(1);
+        if (fallbackPath) {
+            return { bucket: process.env.VITE_R2_BUCKET_NAME || 'field-ops-photos', path: fallbackPath };
         }
 
         return null;
     } catch (e) {
         console.error('Failed to parse report URL:', url, e);
+        // Last resort: if it's just a path or we can't parse as URL, return as is
+        if (url && !url.startsWith('http')) {
+            return { bucket: process.env.VITE_R2_BUCKET_NAME || 'field-ops-photos', path: url.replace(/^\/+/, '') };
+        }
         return null;
     }
 }
