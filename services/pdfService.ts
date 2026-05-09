@@ -286,6 +286,15 @@ export const generateAuditReportPDF = async (
         columnStyles: {
             5: { cellWidth: 50, minCellHeight: 40 }, // Increased width for larger photos
         },
+        didParseCell: (data: any) => {
+            if (data.section === 'body' && data.column.index === 3) {
+                const text = data.cell.raw || '';
+                if (typeof text === 'string' && (text.startsWith('No') || text.startsWith('Red Flag'))) {
+                    data.cell.styles.textColor = [220, 0, 0]; // Red
+                    data.cell.styles.fontStyle = 'bold';
+                }
+            }
+        },
         didDrawCell: (data: any) => {
             if (data.section === 'body' && data.column.index === 5) {
                 const currentPageNumber = (doc as any).internal?.getCurrentPageInfo?.()?.pageNumber;
