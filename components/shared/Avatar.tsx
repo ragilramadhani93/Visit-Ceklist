@@ -1,5 +1,6 @@
 import React from 'react';
 import { User as UserIcon } from 'lucide-react';
+import { normalizeR2Url } from '../../services/storageClient';
 
 interface AvatarProps {
   user: {
@@ -40,7 +41,7 @@ const Avatar: React.FC<AvatarProps> = ({ user, className = 'w-10 h-10' }) => {
   };
 
   if (user.avatar_url) {
-    return <img src={user.avatar_url} alt={user.name || 'User Avatar'} className={`rounded-full object-cover ${className}`} />;
+    return <img src={normalizeR2Url(user.avatar_url)} alt={user.name || 'User Avatar'} className={`rounded-full object-cover ${className}`} />;
   }
 
   const initials = getInitials(user.name);

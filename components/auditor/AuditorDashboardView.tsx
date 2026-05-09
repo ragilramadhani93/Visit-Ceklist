@@ -5,6 +5,7 @@ import ResolveFindingModal from '../findings/ResolveFindingModal';
 import ImageModal from '../shared/ImageModal';
 import { Wrench, Flag, CheckSquare, MessageSquare } from 'lucide-react';
 import Button from '../shared/Button';
+import { normalizeR2Url } from '../../services/storageClient';
 
 interface EnrichedFinding extends Task {
   location?: string | null;
@@ -197,8 +198,8 @@ const AuditorDashboardView: React.FC<AuditorDashboardViewProps> = ({ user, onSel
                                         </div>
                                         ) : (
                                         <div className="flex flex-col">
-                                            <button onClick={() => handleOpenImageModal(task.photo!)} className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group">
-                                                <img src={task.photo} alt="Finding evidence" className="rounded-lg object-cover w-full h-28 md:h-full cursor-pointer transition-transform group-hover:scale-105" />
+                                            <button onClick={() => handleOpenImageModal(normalizeR2Url(task.photo!))} className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group">
+                                                <img src={normalizeR2Url(task.photo!)} alt="Finding evidence" className="rounded-lg object-cover w-full h-28 md:h-full cursor-pointer transition-transform group-hover:scale-105" />
                                             </button>
                                         </div>
                                     )}
