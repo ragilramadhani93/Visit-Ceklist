@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Checklist, User, Task, TaskPriority } from '../types';
+import { normalizeR2Url } from './storageClient';
 
 // Extend the jsPDF interface to include autoTable
 // FIX: Removed module augmentation for 'jspdf' which was causing a "module not found" error during compilation.
@@ -10,15 +11,19 @@ import { Checklist, User, Task, TaskPriority } from '../types';
 
 const getImageAsDataURI = async (source: string, mimeType: string = 'image/jpeg', timeoutMs = 5000): Promise<string | null> => {
     if (!source) return null;
-    if (!source.startsWith('http') && source.length > 200) {
-        return `data:${mimeType};base64,${source}`;
+    
+    // Normalize URL to fix old domain issues
+    const normalizedSource = normalizeR2Url(source);
+
+    if (!normalizedSource.startsWith('http') && normalizedSource.length > 200) {
+        return `data:${mimeType};base64,${normalizedSource}`;
     }
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-        const response = await fetch(`${source}?t=${new Date().getTime()}`, {
+        const response = await fetch(`${normalizedSource}?t=${new Date().getTime()}`, {
             signal: controller.signal
         });
         clearTimeout(timeoutId);

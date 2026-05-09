@@ -3,7 +3,10 @@ import { Checklist, User } from '../../types';
 import Card from '../shared/Card';
 import Avatar from '../shared/Avatar';
 import Button from '../shared/Button';
-import { Download, FileText } from 'lucide-react';
+import { Download, FileText, RefreshCw } from 'lucide-react';
+import { generateAuditReportPDF } from '../../services/pdfService';
+import { turso } from '../../services/tursoClient';
+import { uploadPublic } from '../../services/storageClient';
 
 // Get API base URL from environment
 const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || '';
@@ -11,6 +14,7 @@ const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || '';
 const ReportsView: React.FC<ReportsViewProps> = ({ checklists, users }) => {
   const userMap = useMemo(() => new Map(users.map(user => [user.id, user])), [users]);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState<string | null>(null);
 
   // Helper to get API URL (prefers relative path in production/Vercel)
   const getApiUrl = (path: string): string => {
@@ -73,6 +77,46 @@ const ReportsView: React.FC<ReportsViewProps> = ({ checklists, users }) => {
     }
   };
 
+  const handleRegenerateReport = async (audit: Checklist) => {
+    if (isRegenerating) return;
+    
+    const confirmRegen = window.confirm("Are you sure you want to regenerate this report? This will attempt to re-fetch all photos and create a new PDF.");
+    if (!confirmRegen) return;
+
+    setIsRegenerating(audit.id);
+    try {
+      const auditor = audit.assigned_to ? userMap.get(audit.assigned_to) : null;
+      const logoUrl = (import.meta as any).env?.VITE_LOGO_URL || "https://pub-9d01db2ebda64069a7e7fd1f530e753e.r2.dev/viLjdYG8hKmB34Y0CZFvFTm8BWcavvRr5B05IUl1__1_-removebg-preview%20(1).png";
+      
+      // 1. Generate new PDF
+      const pdfBlob = await generateAuditReportPDF(audit, auditor || null, logoUrl);
+
+      // 2. Upload new PDF
+      const auditorName = auditor?.name?.replace(/\s+/g, '_') || 'Auditor';
+      const locationName = audit.location?.replace(/\s+/g, '_') || 'Location';
+      const dateStr = new Date().toISOString().split('T')[0];
+      const fileName = `reports/${auditorName}_${locationName}_${dateStr}_${audit.id.slice(0, 6)}_regen.pdf`;
+
+      const newReportUrl = await uploadPublic('field-ops-photos', pdfBlob, fileName);
+      
+      // 3. Update database
+      await turso.execute({
+        sql: 'UPDATE checklists SET report_url = ? WHERE id = ?',
+        args: [newReportUrl, audit.id]
+      });
+
+      alert("Report regenerated successfully! You can now download the new version.");
+      // Note: In a real app, we'd trigger a data refresh here, but since checklists are passed as props, 
+      // the user will need to refresh the page or the parent will need to re-fetch.
+      window.location.reload(); 
+    } catch (error: any) {
+      console.error('Failed to regenerate report:', error);
+      alert(`Failed to regenerate report: ${error.message}`);
+    } finally {
+      setIsRegenerating(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-neutral">Generated Reports</h2>
@@ -130,15 +174,27 @@ const ReportsView: React.FC<ReportsViewProps> = ({ checklists, users }) => {
                         {audit.check_out_time ? new Date(audit.check_out_time).toLocaleDateString() : 'N/A'}
                       </td>
                       <td className="p-3 text-center">
-                        <Button
-                          variant="primary"
-                          className="!py-1 !px-3 !text-sm"
-                          onClick={() => handleDownloadReport(audit)}
-                          disabled={downloadingId === audit.id}
-                        >
-                          <Download size={16} className="mr-2" />
-                          {downloadingId === audit.id ? 'Downloading...' : 'Download PDF'}
-                        </Button>
+                        <div className="flex flex-col sm:flex-row justify-center gap-2">
+                          <Button
+                            variant="primary"
+                            className="!py-1 !px-3 !text-sm"
+                            onClick={() => handleDownloadReport(audit)}
+                            disabled={downloadingId === audit.id || isRegenerating === audit.id}
+                          >
+                            <Download size={16} className="mr-2" />
+                            {downloadingId === audit.id ? 'Downloading...' : 'Download PDF'}
+                          </Button>
+                          
+                          <Button
+                            variant="secondary"
+                            className="!py-1 !px-3 !text-sm"
+                            onClick={() => handleRegenerateReport(audit)}
+                            disabled={downloadingId === audit.id || isRegenerating === audit.id}
+                          >
+                            <RefreshCw size={16} className={`mr-2 ${isRegenerating === audit.id ? 'animate-spin' : ''}`} />
+                            {isRegenerating === audit.id ? 'Regenerating...' : 'Regenerate'}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
