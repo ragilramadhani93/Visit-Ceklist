@@ -4,10 +4,11 @@ export interface WhatsAppMessageOptions {
   targets: string[]; // Array of phone numbers
   message: string;
   fileUrl?: string; // Optional URL to a file (e.g. PDF report)
+  filename?: string; // Optional filename for the attachment
   token?: string; // Optional Fonnte token
 }
 
-export const sendWhatsAppMessage = async ({ targets, message, fileUrl, token: providedToken }: WhatsAppMessageOptions): Promise<boolean> => {
+export const sendWhatsAppMessage = async ({ targets, message, fileUrl, filename, token: providedToken }: WhatsAppMessageOptions): Promise<boolean> => {
   const token = providedToken || (import.meta as any).env?.VITE_FONNTE_TOKEN;
   
   if (!token) {
@@ -25,7 +26,7 @@ export const sendWhatsAppMessage = async ({ targets, message, fileUrl, token: pr
     if (fileUrl) {
       formData.append('url', fileUrl);
       // Fonnte recommends appending a filename for better display
-      formData.append('filename', 'Audit_Report.pdf');
+      formData.append('filename', filename || 'Audit_Report.pdf');
     }
 
     // Fonnte typing indicator delay (optional, makes it look more natural)

@@ -1,13 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { Task, Checklist, User, TaskPriority, Role } from '../../types';
+import { Task, Checklist, User, TaskPriority, Role, Outlet } from '../../types';
 import Card from '../shared/Card';
 import Avatar from '../shared/Avatar';
-import { Flag, MapPin, Calendar, HelpCircle, FileText, CheckSquare, Wrench, MessageSquare, Download } from 'lucide-react';
+import { Flag, MapPin, Calendar, HelpCircle, FileText, CheckSquare, Wrench, MessageSquare, Download, Share2 } from 'lucide-react';
 import { generateFindingsReportPDF } from '../../services/pdfService';
 import Button from '../shared/Button';
 import ResolveFindingModal from './ResolveFindingModal';
 import ImageModal from '../shared/ImageModal';
-import { normalizeR2Url } from '../../services/storageClient';
+import { normalizeR2Url, uploadPublic } from '../../services/storageClient';
+import { sendWhatsAppMessage } from '../../services/whatsappClient';
+import { turso } from '../../services/tursoClient';
 
 interface EnrichedFinding extends Task {
   location?: string | null;
@@ -21,6 +23,8 @@ interface FindingsViewProps {
   tasks: Task[];
   checklists: Checklist[];
   users: User[];
+  outlets: Outlet[];
+  currentUser: User | null;
   onResolveTask: (taskId: string, resolutionData: { photo: string; comment?: string }) => Promise<void>;
   onAssignTask: (taskId: string, assigneeId: string | null) => Promise<void>;
   canAssign?: boolean;
@@ -191,7 +195,7 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; users: User[]; canAssign
 };
 
 
-const FindingsView: React.FC<FindingsViewProps> = ({ tasks, checklists, users, onResolveTask, onAssignTask, canAssign = true }) => {
+const FindingsView: React.FC<FindingsViewProps> = ({ tasks, checklists, users, outlets, currentUser, onResolveTask, onAssignTask, canAssign = true }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
@@ -199,6 +203,7 @@ const FindingsView: React.FC<FindingsViewProps> = ({ tasks, checklists, users, o
   const [selectedFinding, setSelectedFinding] = useState<EnrichedFinding | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [isSendingWA, setIsSendingWA] = useState(false);
 
   const enrichedFindings = useMemo<EnrichedFinding[]>(() => {
     const checklistMap = new Map<string, Checklist>(checklists.map(c => [c.id, c]));
@@ -253,6 +258,77 @@ const FindingsView: React.FC<FindingsViewProps> = ({ tasks, checklists, users, o
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  };
+
+  const handleSendToWhatsApp = async () => {
+    if (filteredFindings.length === 0) {
+      alert("No findings to report.");
+      return;
+    }
+
+    setIsSendingWA(true);
+    try {
+      const title = locationFilter === 'all' ? 'All Locations' : locationFilter;
+      const displayFileName = `findings_${title.replace(/\s+/g, '_').toLowerCase()}_${Date.now().toString().slice(-6)}.pdf`;
+      
+      // 1. Generate PDF
+      const blob = await generateFindingsReportPDF(filteredFindings, checklists, users, `Findings Report - ${title}`);
+      
+      // 2. Upload to R2
+      const fileName = `reports/findings/${displayFileName}`;
+      const reportUrl = await uploadPublic('field-ops-photos', blob, fileName);
+
+      // 3. Determine targets
+      let targets: string[] = [];
+      if (locationFilter !== 'all') {
+        const targetOutlet = outlets.find(o => o.name === locationFilter);
+        if (targetOutlet && targetOutlet.whatsapp_number && targetOutlet.whatsapp_number.length > 0) {
+          targets = targetOutlet.whatsapp_number;
+        }
+      }
+
+      if (targets.length === 0) {
+        // Fallback to global recipients if no outlet PIC found
+        const resWa = await turso.execute('SELECT phone_number FROM whatsapp_recipients');
+        targets = resWa.rows.map((r: any) => r.phone_number as string);
+      }
+
+      if (targets.length === 0) {
+        throw new Error("No WhatsApp recipients configured (neither outlet PIC nor global recipients).");
+      }
+
+      // 4. Fetch Fonnte token
+      let dbToken = undefined;
+      const settingsRes = await turso.execute({
+        sql: 'SELECT value FROM settings WHERE key = ?',
+        args: ['fonnte_token']
+      });
+      if (settingsRes.rows.length > 0) {
+        dbToken = settingsRes.rows[0].value as string;
+      }
+
+      // 5. Send message
+      const waMessage = `🔔 *Laporan Temuan Audit (Findings Report)* 🔔\n\n*Lokasi:* ${title}\n*Dibuat Oleh:* ${currentUser?.name || currentUser?.email}\n*Waktu:* ${new Date().toLocaleString('id-ID')}\n\nLaporan temuan audit terlampir dalam format PDF.`;
+
+      const success = await sendWhatsAppMessage({
+        targets,
+        message: waMessage,
+        fileUrl: reportUrl,
+        filename: displayFileName,
+        token: dbToken
+      });
+
+      if (success) {
+        alert(`Findings report successfully sent to ${targets.length} recipients via WhatsApp!`);
+      } else {
+        alert("Failed to send WhatsApp message. Please check your configuration.");
+      }
+    } catch (error: any) {
+      console.error("WhatsApp sending failed:", error);
+      alert(`Error: ${error.message || 'Unknown error occurred'}`);
+    } finally {
+      setIsSendingWA(false);
+    }
   };
   
   const handleOpenResolveModal = (finding: EnrichedFinding) => {
@@ -315,7 +391,11 @@ const FindingsView: React.FC<FindingsViewProps> = ({ tasks, checklists, users, o
                         ))}
                     </select>
                 </div>
-                <div className="ml-auto">
+                <div className="ml-auto flex space-x-2">
+                    <Button onClick={handleSendToWhatsApp} disabled={isSendingWA} variant="secondary" className="!text-sm !py-2">
+                      <Share2 size={16} className="mr-2" />
+                      {isSendingWA ? 'Sending...' : 'Send to WA'}
+                    </Button>
                     <Button onClick={handleDownloadReport} variant="primary" className="!text-sm !py-2">
                       <Download size={16} className="mr-2" />
                       Download PDF

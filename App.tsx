@@ -766,8 +766,9 @@ const App: React.FC = () => {
       const auditorName = currentUser?.name?.replace(/\s+/g, '_') || 'Auditor';
       const locationName = checklistForDb.location?.replace(/\s+/g, '_') || 'Location';
       const dateStr = new Date().toISOString().split('T')[0];
+      const displayFileName = `${auditorName}_${locationName}_${dateStr}_${completedChecklist.id.slice(0, 6)}.pdf`;
       // Append short ID to ensure uniqueness
-      const fileName = `reports/${auditorName}_${locationName}_${dateStr}_${completedChecklist.id.slice(0, 6)}.pdf`;
+      const fileName = `reports/${displayFileName}`;
 
       const reportUrl = await uploadFile('field-ops-photos', pdfBlob, fileName);
       checklistForDb.report_url = reportUrl;
@@ -841,7 +842,7 @@ const App: React.FC = () => {
           
           if (targetOutlet && targetOutlet.whatsapp_number && targetOutlet.whatsapp_number.length > 0) {
             const targetNumbers = targetOutlet.whatsapp_number;
-            const waMessage = `🔔 *Laporan Audit Baru* 🔔\n\n*Outlet:* ${targetOutlet.name}\n*Auditor:* ${currentUser?.name || currentUser?.email}\n*Waktu:* ${new Date().toLocaleString('id-ID')}\n\nLaporan lengkap dapat diunduh pada tautan berikut.`;
+            const waMessage = `🔔 *Laporan Audit Baru* 🔔\n\n*Outlet:* ${targetOutlet.name}\n*Auditor:* ${currentUser?.name || currentUser?.email}\n*Waktu:* ${new Date().toLocaleString('id-ID')}\n\nLaporan lengkap terlampir dalam format PDF. Anda juga dapat mengunduhnya pada tautan berikut.`;
             
             // Fetch token from settings
             let dbToken = undefined;
@@ -861,6 +862,7 @@ const App: React.FC = () => {
               targets: targetNumbers,
               message: waMessage,
               fileUrl: reportUrl,
+              filename: displayFileName,
               token: dbToken
             });
           } else {
@@ -1030,7 +1032,7 @@ const App: React.FC = () => {
           : tasks;
         const canAssign = currentUser?.role === Role.Admin;
         const onAssignTask = canAssign ? handleAssignTask : async () => { alert('Not allowed'); };
-        return <FindingsView tasks={findingsTasks} checklists={findingsChecklists} users={users} onResolveTask={handleResolveTask} onAssignTask={onAssignTask} canAssign={canAssign} />;
+        return <FindingsView tasks={findingsTasks} checklists={findingsChecklists} users={users} outlets={outlets} currentUser={currentUser} onResolveTask={handleResolveTask} onAssignTask={onAssignTask} canAssign={canAssign} />;
       case 'reports':
         const reportChecklists = currentUser?.role === Role.Auditor
           ? checklists.filter(c => c.assigned_to === currentUser.id)
