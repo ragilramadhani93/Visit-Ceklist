@@ -134,7 +134,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ checklists, users }) => {
             });
             const dbToken = settingsRes.rows.length > 0 ? settingsRes.rows[0].value as string : undefined;
 
-            const waMessage = `🔄 *Laporan Audit Diperbarui* 🔄\n\n*Outlet:* ${targetOutlet.name}\n*Waktu Regenerasi:* ${new Date().toLocaleString('id-ID')}\n\nLaporan terbaru telah dibuat. Silakan unduh pada tautan berikut.`;
+            const waMessage = `🔄 *Laporan Audit Diperbarui* 🔄\n\n*Outlet:* ${targetOutlet.name}\n*Waktu Regenerasi:* ${new Date().toLocaleString('id-ID')}\n\n📄 *Link PDF:*\n${newReportUrl}\n\nAtau buka tautan di atas untuk mengunduh laporan.`;
 
             await sendWhatsAppMessage({
               targets: waNumbers,

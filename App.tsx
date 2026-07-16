@@ -842,7 +842,7 @@ const App: React.FC = () => {
           
           if (targetOutlet && targetOutlet.whatsapp_number && targetOutlet.whatsapp_number.length > 0) {
             const targetNumbers = targetOutlet.whatsapp_number;
-            const waMessage = `🔔 *Laporan Audit Baru* 🔔\n\n*Outlet:* ${targetOutlet.name}\n*Auditor:* ${currentUser?.name || currentUser?.email}\n*Waktu:* ${new Date().toLocaleString('id-ID')}\n\nLaporan lengkap terlampir dalam format PDF. Anda juga dapat mengunduhnya pada tautan berikut.`;
+            const waMessage = `🔔 *Laporan Audit Baru* 🔔\n\n*Outlet:* ${targetOutlet.name}\n*Auditor:* ${currentUser?.name || currentUser?.email}\n*Waktu:* ${new Date().toLocaleString('id-ID')}\n\n📄 *Link PDF:*\n${reportUrl}\n\nAtau buka tautan di atas untuk mengunduh laporan.`;
             
             // Fetch token from settings
             let dbToken = undefined;
