@@ -7,6 +7,7 @@ import { Download, FileText, RefreshCw } from 'lucide-react';
 import { generateAuditReportPDF } from '../../services/pdfService';
 import { turso } from '../../services/tursoClient';
 import { uploadPublic } from '../../services/storageClient';
+import { sendWhatsAppMessage } from '../../services/whatsappClient';
 
 // Get API base URL from environment
 const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || '';
@@ -105,9 +106,56 @@ const ReportsView: React.FC<ReportsViewProps> = ({ checklists, users }) => {
         args: [newReportUrl, audit.id]
       });
 
-      alert("Report regenerated successfully! You can now download the new version.");
-      // Note: In a real app, we'd trigger a data refresh here, but since checklists are passed as props, 
-      // the user will need to refresh the page or the parent will need to re-fetch.
+      // 4. Send WhatsApp notification to outlet
+      let waStatus = '';
+      try {
+        const outletRes = await turso.execute({
+          sql: 'SELECT * FROM outlets WHERE name = ?',
+          args: [audit.location]
+        });
+        const targetOutlet = outletRes.rows[0] as any;
+
+        if (targetOutlet && targetOutlet.whatsapp_number) {
+          let waNumbers: string[] = [];
+          if (typeof targetOutlet.whatsapp_number === 'string') {
+            try {
+              waNumbers = JSON.parse(targetOutlet.whatsapp_number);
+            } catch {
+              waNumbers = [targetOutlet.whatsapp_number];
+            }
+          } else if (Array.isArray(targetOutlet.whatsapp_number)) {
+            waNumbers = targetOutlet.whatsapp_number;
+          }
+
+          if (waNumbers.length > 0) {
+            const settingsRes = await turso.execute({
+              sql: 'SELECT value FROM settings WHERE key = ?',
+              args: ['fonnte_token']
+            });
+            const dbToken = settingsRes.rows.length > 0 ? settingsRes.rows[0].value as string : undefined;
+
+            const waMessage = `🔄 *Laporan Audit Diperbarui* 🔄\n\n*Outlet:* ${targetOutlet.name}\n*Waktu Regenerasi:* ${new Date().toLocaleString('id-ID')}\n\nLaporan terbaru telah dibuat. Silakan unduh pada tautan berikut.`;
+
+            await sendWhatsAppMessage({
+              targets: waNumbers,
+              message: waMessage,
+              fileUrl: newReportUrl,
+              filename: `${auditorName}_${locationName}_${dateStr}.pdf`,
+              token: dbToken
+            });
+            waStatus = '\n(Notifikasi WhatsApp terkirim)';
+          } else {
+            waStatus = `\n(Peringatan: Outlet '${audit.location}' tidak memiliki nomor WhatsApp.)`;
+          }
+        } else {
+          waStatus = `\n(Peringatan: Outlet '${audit.location}' tidak ditemukan.)`;
+        }
+      } catch (waError: any) {
+        console.error("Failed to send WhatsApp notification:", waError);
+        waStatus = `\n(Peringatan: Gagal mengirim notifikasi WhatsApp: ${waError.message || 'Unknown error'})`;
+      }
+
+      alert(`Report regenerated successfully!${waStatus}`);
       window.location.reload(); 
     } catch (error: any) {
       console.error('Failed to regenerate report:', error);
