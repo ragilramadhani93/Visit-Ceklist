@@ -134,7 +134,11 @@ const ReportsView: React.FC<ReportsViewProps> = ({ checklists, users }) => {
             });
             const dbToken = settingsRes.rows.length > 0 ? settingsRes.rows[0].value as string : undefined;
 
-            const waMessage = `🔄 *Laporan Audit Diperbarui* 🔄\n\n*Outlet:* ${targetOutlet.name}\n*Waktu Regenerasi:* ${new Date().toLocaleString('id-ID')}\n\n📄 *Link PDF:*\n${newReportUrl}\n\nAtau buka tautan di atas untuk mengunduh laporan.`;
+            // Build a download URL from the Vercel domain (avoids SSL issues with direct R2 links)
+            const downloadOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+            const safeDownloadUrl = `${downloadOrigin}/api/pdf-download?url=${encodeURIComponent(newReportUrl)}`;
+
+            const waMessage = `🔄 *Laporan Audit Diperbarui* 🔄\n\n*Outlet:* ${targetOutlet.name}\n*Waktu Regenerasi:* ${new Date().toLocaleString('id-ID')}\n\n📄 *Link PDF:*\n${safeDownloadUrl}\n\nAtau klik tautan di atas untuk mengunduh laporan.`;
 
             await sendWhatsAppMessage({
               targets: waNumbers,

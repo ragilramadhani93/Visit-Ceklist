@@ -68,6 +68,49 @@ export default defineConfig(({ mode }) => {
             });
           });
 
+          server.middlewares.use('/api/pdf-download', (req, res, next) => {
+            if (req.method !== 'GET') {
+              next();
+              return;
+            }
+
+            const url = new URL(req.url || '', `http://${req.headers.host}`);
+            const reportUrl = url.searchParams.get('url') || '';
+
+            if (!reportUrl) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'text/plain');
+              res.end('Missing report URL');
+              return;
+            }
+
+            const allowedDomains = ['r2.dev', 'cloudflarestorage.com'];
+            const isAllowed = allowedDomains.some(d => reportUrl.includes(d));
+            if (!isAllowed) {
+              res.statusCode = 403;
+              res.setHeader('Content-Type', 'text/plain');
+              res.end('Invalid file source');
+              return;
+            }
+
+            fetch(reportUrl)
+              .then(r => {
+                if (!r.ok) throw new Error(r.statusText);
+                const filename = new URL(reportUrl).pathname.split('/').pop() || 'audit-report.pdf';
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+                r.arrayBuffer().then(buf => {
+                  res.end(Buffer.from(buf));
+                });
+              })
+              .catch(err => {
+                res.statusCode = 502;
+                res.setHeader('Content-Type', 'text/plain');
+                res.end(`Failed to fetch PDF: ${err.message}`);
+              });
+          });
+
           server.middlewares.use('/api/image-proxy', (req, res, next) => {
             if (req.method !== 'POST') {
               next();
