@@ -3,6 +3,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { handleUploadRequest } from './api/uploadHandler';
 import { handleReportDownloadRequest } from './api/report-download';
+import { handleImageProxyRequest } from './api/image-proxy';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
@@ -55,6 +56,32 @@ export default defineConfig(({ mode }) => {
                   secretAccessKey: env.VITE_R2_SECRET_ACCESS_KEY,
                   publicUrlBase: env.VITE_R2_PUBLIC_URL,
                 }, query, rawBody);
+
+                res.statusCode = status;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(payload));
+              } catch (error: any) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: error?.message || 'Invalid request body' }));
+              }
+            });
+          });
+
+          server.middlewares.use('/api/image-proxy', (req, res, next) => {
+            if (req.method !== 'POST') {
+              next();
+              return;
+            }
+
+            let rawBody = '';
+            req.on('data', chunk => {
+              rawBody += chunk;
+            });
+            req.on('end', async () => {
+              try {
+                const parsedBody = rawBody ? JSON.parse(rawBody) : undefined;
+                const { status, payload } = await handleImageProxyRequest(req.method, parsedBody);
 
                 res.statusCode = status;
                 res.setHeader('Content-Type', 'application/json');

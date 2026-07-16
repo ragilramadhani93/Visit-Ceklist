@@ -9,6 +9,15 @@ import { normalizeR2Url } from './storageClient';
 // to bypass static type checking. This is consistent with how other plugin properties
 // (like `lastAutoTable`) are already accessed in this file.
 
+// Small helper to get the API base URL (same origin in production, configurable in dev)
+const getApiUrl = (path: string): string => {
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    if (typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname === 'localhost')) {
+        return cleanPath;
+    }
+    return cleanPath;
+};
+
 const getImageAsDataURI = async (source: string, mimeType: string = 'image/jpeg', timeoutMs = 5000): Promise<string | null> => {
     if (!source) return null;
     
@@ -19,6 +28,33 @@ const getImageAsDataURI = async (source: string, mimeType: string = 'image/jpeg'
         return `data:${mimeType};base64,${normalizedSource}`;
     }
     
+    // For HTTP URLs (especially R2), proxy through the server to avoid CORS issues
+    if (normalizedSource.startsWith('http')) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+            const response = await fetch(getApiUrl('/api/image-proxy'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: `${normalizedSource}?t=${new Date().getTime()}` }),
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+                const { dataUri } = await response.json();
+                if (dataUri) return dataUri;
+            }
+
+            // If proxy fails, log and try direct fetch as fallback
+            console.warn(`[PDF] Image proxy failed for ${normalizedSource}, trying direct fetch...`);
+        } catch (proxyError) {
+            console.warn(`[PDF] Image proxy error for ${normalizedSource}:`, proxyError);
+        }
+    }
+    
+    // Fallback: direct fetch (works if CORS is configured or for same-origin images)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
