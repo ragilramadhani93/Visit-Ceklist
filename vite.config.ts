@@ -68,6 +68,49 @@ export default defineConfig(({ mode }) => {
             });
           });
 
+          server.middlewares.use('/api/img-proxy', (req, res, next) => {
+            if (req.method !== 'GET') {
+              next();
+              return;
+            }
+
+            const url = new URL(req.url || '', `http://${req.headers.host}`);
+            const imageUrl = url.searchParams.get('url') || '';
+
+            if (!imageUrl) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'text/plain');
+              res.end('Missing image URL');
+              return;
+            }
+
+            const allowedDomains = ['r2.dev', 'cloudflarestorage.com', 'supabase.co'];
+            const isAllowed = allowedDomains.some(d => imageUrl.includes(d));
+            if (!isAllowed) {
+              res.statusCode = 403;
+              res.setHeader('Content-Type', 'text/plain');
+              res.end('Invalid image source');
+              return;
+            }
+
+            fetch(imageUrl)
+              .then(r => {
+                if (!r.ok) throw new Error(r.statusText);
+                const ct = r.headers.get('content-type') || 'image/jpeg';
+                res.statusCode = 200;
+                res.setHeader('Content-Type', ct);
+                res.setHeader('Cache-Control', 'public, max-age=86400');
+                r.arrayBuffer().then(buf => {
+                  res.end(Buffer.from(buf));
+                });
+              })
+              .catch(err => {
+                res.statusCode = 502;
+                res.setHeader('Content-Type', 'text/plain');
+                res.end(`Failed to fetch image: ${err.message}`);
+              });
+          });
+
           server.middlewares.use('/api/pdf-download', (req, res, next) => {
             if (req.method !== 'GET') {
               next();

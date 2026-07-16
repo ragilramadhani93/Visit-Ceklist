@@ -8,6 +8,15 @@ import Button from '../shared/Button';
 import ResolveFindingModal from './ResolveFindingModal';
 import ImageModal from '../shared/ImageModal';
 import { normalizeR2Url, uploadPublic } from '../../services/storageClient';
+
+// Helper to proxy R2 images through the Vercel domain (avoids SSL/CORS issues)
+const proxyImageUrl = (url: string): string => {
+  if (!url) return url;
+  const normalized = normalizeR2Url(url);
+  if (!normalized.startsWith('http')) return normalized;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${origin}/api/img-proxy?url=${encodeURIComponent(normalized)}`;
+};
 import { sendWhatsAppMessage } from '../../services/whatsappClient';
 import { turso } from '../../services/tursoClient';
 
@@ -164,7 +173,7 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; users: User[]; canAssign
                                     <span className="text-xs font-bold text-gray-500 block mb-1 text-center">EVIDENCE</span>
                                     {evidenceIsVideo ? (
                                         <video
-                                            src={normalizeR2Url(finding.photo!)}
+                                            src={proxyImageUrl(finding.photo!)}
                                             controls
                                             playsInline
                                             muted
@@ -172,8 +181,8 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; users: User[]; canAssign
                                             className="rounded-lg object-cover w-full h-36 md:h-full bg-black"
                                         />
                                     ) : (
-                                        <button onClick={() => onImageClick(normalizeR2Url(finding.photo!))} className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group">
-                                            <img src={normalizeR2Url(finding.photo!)} alt="Finding evidence" className="rounded-lg object-cover w-full h-36 md:h-full cursor-pointer transition-transform group-hover:scale-105" />
+                                        <button onClick={() => onImageClick(proxyImageUrl(finding.photo!))} className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group">
+                                            <img src={proxyImageUrl(finding.photo!)} alt="Finding evidence" className="rounded-lg object-cover w-full h-36 md:h-full cursor-pointer transition-transform group-hover:scale-105" />
                                         </button>
                                     )}
                                 </div>
@@ -181,8 +190,8 @@ const FindingCard: React.FC<{ finding: EnrichedFinding; users: User[]; canAssign
                             {hasProof && (
                                 <div className="flex flex-col">
                                     <span className="text-xs font-bold text-gray-500 block mb-1 text-center">PROOF OF FIX</span>
-                                    <button onClick={() => onImageClick(normalizeR2Url(finding.proof_of_fix!))} className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group">
-                                        <img src={normalizeR2Url(finding.proof_of_fix!)} alt="Proof of fix" className="rounded-lg object-cover w-full h-36 md:h-full cursor-pointer transition-transform group-hover:scale-105" />
+                                    <button onClick={() => onImageClick(proxyImageUrl(finding.proof_of_fix!))} className="w-full h-full focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group">
+                                        <img src={proxyImageUrl(finding.proof_of_fix!)} alt="Proof of fix" className="rounded-lg object-cover w-full h-36 md:h-full cursor-pointer transition-transform group-hover:scale-105" />
                                     </button>
                                 </div>
                             )}

@@ -15,6 +15,10 @@
     "api/pdf-download.ts": {
       "memory": 256,
       "maxDuration": 30
+    },
+    "api/img-proxy.ts": {
+      "memory": 256,
+      "maxDuration": 20
     }
   }
 }
